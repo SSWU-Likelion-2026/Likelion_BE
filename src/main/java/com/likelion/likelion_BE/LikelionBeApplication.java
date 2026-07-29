@@ -1,4 +1,4 @@
-package com.likelion.likelion_be;
+package com.likelion.likelion_BE;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
