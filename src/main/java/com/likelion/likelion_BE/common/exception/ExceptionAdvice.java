@@ -5,6 +5,7 @@ import com.likelion.likelion_BE.common.response.ErrorCode;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
@@ -32,7 +33,7 @@ public class ExceptionAdvice extends ResponseEntityExceptionHandler {
         return handleExceptionInternal(e, body, new HttpHeaders(), e.getErrorCode().getHttpStatus(), webRequest);
     }
 
-    // 2. @Valid @RequestBody DTO 검증 실패 (ResponseEntityExceptionHandler 메서드 오버라이드)
+    // 2. @Valid @RequestBody DTO 검증 실패
     @Override
     protected ResponseEntity<Object> handleMethodArgumentNotValid(
             MethodArgumentNotValidException e,
@@ -51,7 +52,7 @@ public class ExceptionAdvice extends ResponseEntityExceptionHandler {
         return handleExceptionInternal(e, body, headers, ErrorCode.BAD_REQUEST.getHttpStatus(), request);
     }
 
-    // 3. @Validated 쿼리 파라미터 / 경로 변수 검증 실패 (첫 번째 코드 적용)
+    // 3. @Validated 쿼리 파라미터 / 경로 변수 검증 실패
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<Object> handleConstraintViolationException(ConstraintViolationException e, WebRequest request) {
         Map<String, String> errors = new LinkedHashMap<>();
@@ -72,6 +73,15 @@ public class ExceptionAdvice extends ResponseEntityExceptionHandler {
     public ResponseEntity<Object> handleIllegalArgumentException(IllegalArgumentException e, WebRequest request) {
         ApiResponse<Object> body = ApiResponse.onFailure(ErrorCode.BAD_REQUEST, e.getMessage(), null);
         return handleExceptionInternal(e, body, new HttpHeaders(), ErrorCode.BAD_REQUEST.getHttpStatus(), request);
+    }
+
+    // 4-1. DB 유니크 제약조건 위반 / 외래키 제약조건 위반 등 데이터 정합성 에러 처리
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Object> handleDataIntegrityViolationException(DataIntegrityViolationException e, WebRequest request) {
+        log.warn("Data integrity violation: {}", e.getMessage());
+
+        ApiResponse<Object> body = ApiResponse.onFailure(ErrorCode.DUPLICATE_RESOURCE, "데이터 정합성 위반 에러가 발생했습니다.", null);
+        return handleExceptionInternal(e, body, new HttpHeaders(), ErrorCode.DUPLICATE_RESOURCE.getHttpStatus(), request);
     }
 
     // 5. 알 수 없는 최상위 모든 예외

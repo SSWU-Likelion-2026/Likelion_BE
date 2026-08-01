@@ -14,7 +14,9 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @Entity
-@Table(name = "recruitment")
+@Table(name = "recruitment", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_recruitment_term", columnNames = {"term"})
+})
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
