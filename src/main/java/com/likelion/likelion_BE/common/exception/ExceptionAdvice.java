@@ -75,25 +75,34 @@ public class ExceptionAdvice extends ResponseEntityExceptionHandler {
         return handleExceptionInternal(e, body, new HttpHeaders(), ErrorCode.BAD_REQUEST.getHttpStatus(), request);
     }
 
+    // 4-1. DB 유니크 제약조건, 외래키, Nullability 위반 등 데이터 정합성 에러 처리
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<Object> handleDataIntegrityViolationException(DataIntegrityViolationException e, WebRequest request) {
         log.warn("Data integrity violation: {}", e.getMessage());
 
-        String rootMessage = e.getRootCause() != null ? e.getRootCause().getMessage() : "";
+        // NPE 방지
+        Throwable rootCause = e.getRootCause();
+        String rootMessage = (rootCause != null && rootCause.getMessage() != null) ? rootCause.getMessage() : "";
 
-        // 1. Unique 제약조건 위반인 경우 -> DUPLICATE_RESOURCE (409)
+        // 1. Unique 제약조건 위반 -> DUPLICATE_RESOURCE (409)
         if (rootMessage.contains("Duplicate entry") || rootMessage.contains("UK_") || rootMessage.contains("uk_")) {
             ApiResponse<Object> body = ApiResponse.onFailure(ErrorCode.DUPLICATE_RESOURCE, ErrorCode.DUPLICATE_RESOURCE.getMessage(), null);
             return handleExceptionInternal(e, body, new HttpHeaders(), ErrorCode.DUPLICATE_RESOURCE.getHttpStatus(), request);
         }
 
-        // 2. Foreign Key 제약조건 위반인 경우 -> INVALID_DATA_RELATION (400)
+        // 2. Foreign Key 제약조건 위반 -> INVALID_DATA_RELATION (400)
         if (rootMessage.contains("foreign key constraint") || rootMessage.contains("FK_") || rootMessage.contains("fk_")) {
             ApiResponse<Object> body = ApiResponse.onFailure(ErrorCode.INVALID_DATA_RELATION, ErrorCode.INVALID_DATA_RELATION.getMessage(), null);
             return handleExceptionInternal(e, body, new HttpHeaders(), ErrorCode.INVALID_DATA_RELATION.getHttpStatus(), request);
         }
 
-        // 3. 기타 (Nullability 등) -> 기본 BAD_REQUEST
+        // 3. Not Null 제약조건 위반 -> NOT_NULL_VIOLATION (400)
+        if (rootMessage.contains("cannot be null") || rootMessage.contains("NULL") || rootMessage.contains("not-null")) {
+            ApiResponse<Object> body = ApiResponse.onFailure(ErrorCode.NOT_NULL_VIOLATION, ErrorCode.NOT_NULL_VIOLATION.getMessage(), null);
+            return handleExceptionInternal(e, body, new HttpHeaders(), ErrorCode.NOT_NULL_VIOLATION.getHttpStatus(), request);
+        }
+
+        // 4. 기타 예외 -> 기본 BAD_REQUEST
         ApiResponse<Object> body = ApiResponse.onFailure(ErrorCode.BAD_REQUEST, "데이터 정합성 위반 에러가 발생했습니다.", null);
         return handleExceptionInternal(e, body, new HttpHeaders(), ErrorCode.BAD_REQUEST.getHttpStatus(), request);
     }
