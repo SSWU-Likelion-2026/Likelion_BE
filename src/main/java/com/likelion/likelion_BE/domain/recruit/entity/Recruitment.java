@@ -1,8 +1,10 @@
 package com.likelion.likelion_BE.domain.recruit.entity;
 
 import com.likelion.likelion_BE.common.entity.BaseEntity;
+import com.likelion.likelion_BE.common.exception.CustomException;
 import com.likelion.likelion_BE.domain.recruit.dto.request.AdminRecruitmentRequest;
 import com.likelion.likelion_BE.domain.recruit.enums.RecruitmentStatus;
+import com.likelion.likelion_BE.domain.recruit.exception.RecruitmentErrorCode;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -126,11 +128,21 @@ public class Recruitment extends BaseEntity {
     private void updateParts(List<AdminRecruitmentRequest.AdminRecruitmentPartRequest> partRequests) {
         if (partRequests == null) return;
 
-        // 요청으로 들어온 기존 파트 Id 목록 추출
+        // 현재 이 공고가 가지고 있는 기존 파트 Id 목록 추출
+        Set<Long> existingPartIds = this.parts.stream()
+                .map(RecruitmentPart::getId)
+                .collect(Collectors.toSet());
+
+        // 요청으로 들어온 파트 Id 목록 추출
         Set<Long> requestPartIds = partRequests.stream()
                 .map(AdminRecruitmentRequest.AdminRecruitmentPartRequest::id)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
+
+        // 해당 공고의 파트 Id만 들어왔는지 확인
+        if (!existingPartIds.containsAll(requestPartIds)) {
+            throw new CustomException(RecruitmentErrorCode.INVALID_RECRUITMENT_PART);
+        }
 
         // 삭제된 파트만 컬렉션에서 제거 (기존 파트는 유지됨)
         this.parts.removeIf(part -> !requestPartIds.contains(part.getId()));
