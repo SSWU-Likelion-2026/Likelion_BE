@@ -78,12 +78,6 @@ public class AdminRecruitmentService {
             throw new CustomException(RecruitmentErrorCode.DUPLICATE_RECRUITMENT_TERM);
         }
 
-        // 파트 목록 정적 팩토리 메서드로 변환
-        List<RecruitmentPart> newParts = (request.parts() != null) ?
-                request.parts().stream()
-                        .map(p -> RecruitmentPart.createPart(p.name(), p.description()))
-                        .toList() : List.of();
-
         // 4. Entity 수정 - 더티 체킹
         recruitment.updateRecruitment(
                 request.term(),
@@ -95,7 +89,7 @@ public class AdminRecruitmentService {
                 request.interviewStartAt(),
                 request.interviewEndAt(),
                 request.finalResultAt(),
-                newParts
+                request.parts()
         );
 
         return AdminRecruitmentResponse.from(recruitment);

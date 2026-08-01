@@ -1,6 +1,7 @@
 package com.likelion.likelion_BE.domain.recruit.entity;
 
 import com.likelion.likelion_BE.common.entity.BaseEntity;
+import com.likelion.likelion_BE.domain.recruit.dto.request.AdminRecruitmentRequest;
 import com.likelion.likelion_BE.domain.recruit.enums.RecruitmentStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -8,6 +9,9 @@ import lombok.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Entity
 @Table(name = "recruitment")
@@ -101,7 +105,7 @@ public class Recruitment extends BaseEntity {
             LocalDateTime interviewStartAt,
             LocalDateTime interviewEndAt,
             LocalDateTime finalResultAt,
-            List<RecruitmentPart> newParts
+            List<AdminRecruitmentRequest.AdminRecruitmentPartRequest> partRequests
     ) {
         this.term = term;
         this.title = title;
@@ -113,10 +117,36 @@ public class Recruitment extends BaseEntity {
         this.interviewEndAt = interviewEndAt;
         this.finalResultAt = finalResultAt;
 
-        // 기존 파트 제거 후 새로운 파트로 교체
-        this.parts.clear();
-        if (newParts != null) {
-            newParts.forEach(this::addPart);
+        // 파트 업데이트
+        updateParts(partRequests);
+    }
+
+    private void updateParts(List<AdminRecruitmentRequest.AdminRecruitmentPartRequest> partRequests) {
+        if (partRequests == null) return;
+
+        // 요청으로 들어온 기존 파트 Id 목록 추출
+        Set<Long> requestPartIds = partRequests.stream()
+                .map(AdminRecruitmentRequest.AdminRecruitmentPartRequest::id)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        // 삭제된 파트만 컬렉션에서 제거 (기존 파트는 유지됨)
+        this.parts.removeIf(part -> !requestPartIds.contains(part.getId()));
+
+        // 기존 파트 수정 또는 신규 파트 생성
+        for (AdminRecruitmentRequest.AdminRecruitmentPartRequest request : partRequests) {
+            if (request.id() != null) {
+                // 기존 파트 -> 객체 참조 유지하며 값만 변경
+                this.parts.stream()
+                        .filter(part -> part.getId().equals(request.id()))
+                        .findFirst()
+                        .ifPresent(part -> part.updatePart(request.name(), request.description()));
+            } else {
+                // 신규 파트 -> 정적 팩토리 메서드로 생성 후 추가
+                RecruitmentPart newPart = RecruitmentPart.createPart(request.name(), request.description());
+                newPart.assignRecruitment(this);
+                this.parts.add(newPart);
+            }
         }
     }
 

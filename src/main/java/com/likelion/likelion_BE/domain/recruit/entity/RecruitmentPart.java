@@ -38,4 +38,10 @@ public class RecruitmentPart extends BaseEntity {
     public void assignRecruitment(Recruitment recruitment) {
         this.recruitment = recruitment;
     }
+
+    // 업데이트 메서드
+    public void updatePart(String name, String description) {
+        this.name = name;
+        this.description = description;
+    }
 }

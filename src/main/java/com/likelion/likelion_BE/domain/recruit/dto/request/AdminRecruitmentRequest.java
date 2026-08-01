@@ -46,7 +46,7 @@ public record AdminRecruitmentRequest(
         LocalDateTime finalResultAt,
 
         @Valid
-        List<RecruitmentPartRequest> parts
+        List<AdminRecruitmentPartRequest> parts
 ) {
         // 날짜 순서 유효성 검증 메서드
         public boolean isValidScheduleSequence() {
@@ -62,7 +62,9 @@ public record AdminRecruitmentRequest(
                         && !finalResultAt.isBefore(interviewEndAt);
         }
 
-        public record RecruitmentPartRequest(
+        public record AdminRecruitmentPartRequest(
+                Long id,
+
                 @NotBlank(message = "파트 이름은 필수 입력 항목입니다.")
                 String name,
 
