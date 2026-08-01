@@ -5,6 +5,7 @@ import com.likelion.likelion_BE.common.response.ErrorCode;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
@@ -27,12 +28,12 @@ public class ExceptionAdvice extends ResponseEntityExceptionHandler {
     // 1. 도메인 커스텀 예외
     @ExceptionHandler(CustomException.class)
     public ResponseEntity<Object> handleCustomException(CustomException e, HttpServletRequest request) {
-        ApiResponse<Object> body = ApiResponse.onFailure(e.getErrorCode(), null);
+        ApiResponse<Object> body = ApiResponse.onFailure(e.getErrorCode(), e.getMessage(), null);
         WebRequest webRequest = new ServletWebRequest(request);
         return handleExceptionInternal(e, body, new HttpHeaders(), e.getErrorCode().getHttpStatus(), webRequest);
     }
 
-    // 2. @Valid @RequestBody DTO 검증 실패 (ResponseEntityExceptionHandler 메서드 오버라이드)
+    // 2. @Valid @RequestBody DTO 검증 실패
     @Override
     protected ResponseEntity<Object> handleMethodArgumentNotValid(
             MethodArgumentNotValidException e,
@@ -51,7 +52,7 @@ public class ExceptionAdvice extends ResponseEntityExceptionHandler {
         return handleExceptionInternal(e, body, headers, ErrorCode.BAD_REQUEST.getHttpStatus(), request);
     }
 
-    // 3. @Validated 쿼리 파라미터 / 경로 변수 검증 실패 (첫 번째 코드 적용)
+    // 3. @Validated 쿼리 파라미터 / 경로 변수 검증 실패
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<Object> handleConstraintViolationException(ConstraintViolationException e, WebRequest request) {
         Map<String, String> errors = new LinkedHashMap<>();
@@ -71,6 +72,29 @@ public class ExceptionAdvice extends ResponseEntityExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Object> handleIllegalArgumentException(IllegalArgumentException e, WebRequest request) {
         ApiResponse<Object> body = ApiResponse.onFailure(ErrorCode.BAD_REQUEST, e.getMessage(), null);
+        return handleExceptionInternal(e, body, new HttpHeaders(), ErrorCode.BAD_REQUEST.getHttpStatus(), request);
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Object> handleDataIntegrityViolationException(DataIntegrityViolationException e, WebRequest request) {
+        log.warn("Data integrity violation: {}", e.getMessage());
+
+        String rootMessage = e.getRootCause() != null ? e.getRootCause().getMessage() : "";
+
+        // 1. Unique 제약조건 위반인 경우 -> DUPLICATE_RESOURCE (409)
+        if (rootMessage.contains("Duplicate entry") || rootMessage.contains("UK_") || rootMessage.contains("uk_")) {
+            ApiResponse<Object> body = ApiResponse.onFailure(ErrorCode.DUPLICATE_RESOURCE, ErrorCode.DUPLICATE_RESOURCE.getMessage(), null);
+            return handleExceptionInternal(e, body, new HttpHeaders(), ErrorCode.DUPLICATE_RESOURCE.getHttpStatus(), request);
+        }
+
+        // 2. Foreign Key 제약조건 위반인 경우 -> INVALID_DATA_RELATION (400)
+        if (rootMessage.contains("foreign key constraint") || rootMessage.contains("FK_") || rootMessage.contains("fk_")) {
+            ApiResponse<Object> body = ApiResponse.onFailure(ErrorCode.INVALID_DATA_RELATION, ErrorCode.INVALID_DATA_RELATION.getMessage(), null);
+            return handleExceptionInternal(e, body, new HttpHeaders(), ErrorCode.INVALID_DATA_RELATION.getHttpStatus(), request);
+        }
+
+        // 3. 기타 (Nullability 등) -> 기본 BAD_REQUEST
+        ApiResponse<Object> body = ApiResponse.onFailure(ErrorCode.BAD_REQUEST, "데이터 정합성 위반 에러가 발생했습니다.", null);
         return handleExceptionInternal(e, body, new HttpHeaders(), ErrorCode.BAD_REQUEST.getHttpStatus(), request);
     }
 
