@@ -13,7 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-@Tag(name = "Aplication API", description = "유저 - 지원서 관련 API")
+@Tag(name = "Application API", description = "유저 - 지원서 관련 API")
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1")
