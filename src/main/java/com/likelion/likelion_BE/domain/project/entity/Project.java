@@ -1,0 +1,125 @@
+package com.likelion.likelion_BE.domain.project.entity;
+
+import com.likelion.likelion_BE.common.entity.BaseEntity;
+import com.likelion.likelion_BE.domain.project.enums.Hackathon;
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+@Entity
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@Builder(access = AccessLevel.PRIVATE)
+@Table(name = "project")
+public class Project extends BaseEntity {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "project_id")
+    private Long id;
+
+    // TODO: User 엔티티 생기면 연결
+    // @ManyToOne ..
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
+
+    @Column(name = "term", nullable = false)
+    private Integer term;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "hackathon", nullable = false)
+    private Hackathon hackathon;
+
+    @Column(name = "title", nullable = false, length = 100)
+    private String title;
+
+    @Column(name = "summary", nullable = false, length = 200)
+    private String summary;
+
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
+    @Column(name = "logo_url", nullable = false, length = 200)
+    private String logoUrl;
+
+    @Column(name = "start_month", nullable = false)
+    private LocalDate startMonth;
+
+    @Column(name = "end_month", nullable = false)
+    private LocalDate endMonth;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
+    @OneToMany(mappedBy = "project", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<ProjectSlide> slides = new ArrayList<>();
+
+    @OneToMany(mappedBy = "project", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<ProjectMember> members = new ArrayList<>();
+
+    @OneToMany(mappedBy = "project", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<ProjectTechStack> techStacks = new ArrayList<>();
+
+    // 연관관계 편의 메서드
+    public void addSlide(ProjectSlide slide) {
+        this.slides.add(slide);
+        slide.assignProject(this);
+    }
+
+    public void addMember(ProjectMember member) {
+        this.members.add(member);
+        member.assignProject(this);
+    }
+
+    public void addTechStack(ProjectTechStack techStack) {
+        this.techStacks.add(techStack);
+        techStack.assignProject(this);
+    }
+
+    // 정적 팩토리 메서드
+    public static Project createProject(
+            Long userId,
+            Integer term,
+            Hackathon hackathon,
+            String title,
+            String summary,
+            String description,
+            String logoUrl,
+            LocalDate startMonth,
+            LocalDate endMonth,
+            List<ProjectSlide> slides,
+            List<ProjectMember> members,
+            List<ProjectTechStack> techStacks
+    ) {
+        Project project = Project.builder()
+                .userId(userId)
+                .term(term)
+                .hackathon(hackathon)
+                .title(title)
+                .summary(summary)
+                .description(description)
+                .logoUrl(logoUrl)
+                .startMonth(startMonth)
+                .endMonth(endMonth)
+                .build();
+
+        if (slides != null) {
+            slides.forEach(project::addSlide);
+        }
+        if (members != null) {
+            members.forEach(project::addMember);
+        }
+        if (techStacks != null) {
+            techStacks.forEach(project::addTechStack);
+        }
+
+        return project;
+    }
+}
