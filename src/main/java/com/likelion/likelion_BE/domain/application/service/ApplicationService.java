@@ -145,7 +145,7 @@ public class ApplicationService {
         // [검증 4] 필수 질문 답변 여부 및 글자 수 제한 검증
         validateAnswersForSubmit(recruitment.getId(), part.getId(), application.getAnswers());
 
-        // 제출 상태(SUBMITTED) 변경
+        // 제출 상태 변경
         application.submit(part);
 
         return application.getId();
