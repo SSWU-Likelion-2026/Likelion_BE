@@ -1,7 +1,9 @@
 package com.likelion.likelion_BE.domain.project.entity;
 
 import com.likelion.likelion_BE.common.entity.BaseEntity;
+import com.likelion.likelion_BE.common.exception.CustomException;
 import com.likelion.likelion_BE.domain.project.enums.Hackathon;
+import com.likelion.likelion_BE.domain.project.exception.ProjectErrorCode;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -18,6 +20,7 @@ import java.util.List;
 @Builder(access = AccessLevel.PRIVATE)
 @Table(name = "project")
 public class Project extends BaseEntity {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "project_id")
@@ -68,7 +71,7 @@ public class Project extends BaseEntity {
     @Builder.Default
     private List<ProjectTechStack> techStacks = new ArrayList<>();
 
-    // 컬렉션 캡슐화: Getter 오버라이드 -> 읽기 전용 컬렉션
+    // 컬렉션 캡슐화: 읽기 전용 뷰 반환
     public List<ProjectSlide> getSlides() {
         return Collections.unmodifiableList(slides);
     }
@@ -112,7 +115,6 @@ public class Project extends BaseEntity {
             List<ProjectMember> members,
             List<ProjectTechStack> techStacks
     ) {
-        // 날짜 유효성 검증 로직
         validateProjectPeriod(startMonth, endMonth);
 
         Project project = Project.builder()
@@ -141,8 +143,14 @@ public class Project extends BaseEntity {
     }
 
     private static void validateProjectPeriod(LocalDate startMonth, LocalDate endMonth) {
-        if (startMonth != null && endMonth != null && endMonth.isBefore(startMonth)) {
-            throw new IllegalArgumentException("종료일은 시작일보다 이전일 수 없습니다.");
+        // null일 때
+        if (startMonth == null || endMonth == null) {
+            throw new CustomException(ProjectErrorCode.PROJECT_PERIOD_REQUIRED);
+        }
+
+        // 종료일이 시작일보다 빠를 때
+        if (endMonth.isBefore(startMonth)) {
+            throw new CustomException(ProjectErrorCode.INVALID_PROJECT_PERIOD);
         }
     }
 }

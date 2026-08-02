@@ -13,6 +13,9 @@ public enum ProjectErrorCode implements BaseCode {
     INVALID_PROJECT_SLIDE_COUNT(HttpStatus.BAD_REQUEST, "PROJECT400_1", "프로젝트 장표는 최대 10개까지 등록 가능합니다."),
     INVALID_PROJECT_TECH_STACK(HttpStatus.BAD_REQUEST, "PROJECT400_2", "유효하지 않은 기술 스택이 포함되어 있습니다."),
     INVALID_PROJECT_MEMBER(HttpStatus.BAD_REQUEST, "PROJECT400_3", "프로젝트 팀원 정보가 유효하지 않습니다."),
+    PROJECT_PERIOD_REQUIRED(HttpStatus.BAD_REQUEST, "PROJECT400_4", "프로젝트 시작일과 종료일은 필수 입력값입니다."),
+    INVALID_PROJECT_PERIOD(HttpStatus.BAD_REQUEST, "PROJECT400_5", "종료일은 시작일보다 이전일 수 없습니다."),
+
 
     // 403 FORBIDDEN
     PROJECT_FORBIDDEN_CREATE(HttpStatus.FORBIDDEN, "PROJECT403_1", "프로젝트 등록 권한이 없습니다."),
