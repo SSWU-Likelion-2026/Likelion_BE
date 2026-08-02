@@ -98,6 +98,9 @@ public class Project extends BaseEntity {
             List<ProjectMember> members,
             List<ProjectTechStack> techStacks
     ) {
+        // 날짜 유효성 검증 로직
+        validateProjectPeriod(startMonth, endMonth);
+
         Project project = Project.builder()
                 .userId(userId)
                 .term(term)
@@ -121,5 +124,11 @@ public class Project extends BaseEntity {
         }
 
         return project;
+    }
+
+    private static void validateProjectPeriod(LocalDate startMonth, LocalDate endMonth) {
+        if (startMonth != null && endMonth != null && endMonth.isBefore(startMonth)) {
+            throw new IllegalArgumentException("종료일은 시작일보다 이전일 수 없습니다.");
+        }
     }
 }
