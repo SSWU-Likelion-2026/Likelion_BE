@@ -23,10 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -93,7 +90,7 @@ public class ApplicationService {
             throw new CustomException(ApplicationErrorCode.PART_REQUIRED);
         }
 
-        RecruitmentPart part = getPart(request.partId());
+        RecruitmentPart part = getPart(recruitment, request.partId());
 
         // 기존 지원서가 있으면 가져오고, 없으면 신규 생성
         Application application = applicationRepository.findByUserIdAndRecruitmentId(userId, recruitment.getId())
@@ -130,7 +127,7 @@ public class ApplicationService {
             throw new CustomException(ApplicationErrorCode.PART_REQUIRED);
         }
 
-        RecruitmentPart part = getPart(request.partId());
+        RecruitmentPart part = getPart(recruitment, request.partId());
 
         // 기존 지원서 조회 또는 새로 생성
         Application application = applicationRepository.findByUserIdAndRecruitmentId(userId, recruitment.getId())
@@ -180,22 +177,34 @@ public class ApplicationService {
     private void saveOrUpdateAnswers(Application application, List<ApplicationSaveRequest.AnswerInput> inputs) {
         if (inputs == null || inputs.isEmpty()) return;
 
+        // 중복된 questionId가 있는지 확인
+        Set<Long> questionIds = inputs.stream()
+                .map(ApplicationSaveRequest.AnswerInput::questionId)
+                .collect(Collectors.toSet());
+
+        Map<Long, RecruitmentQuestion> questionMap = recruitmentQuestionRepository.findAllById(questionIds)
+                .stream()
+                .collect(Collectors.toMap(RecruitmentQuestion::getId, Function.identity()));
+
+        // 존재하지 않는 questionId가 들어왔을 경우 예외 처리
+        if (questionMap.size() != questionIds.size()) {
+            throw new CustomException(RecruitmentErrorCode.QUESTION_NOT_FOUND);
+        }
+
         // 기존에 등록되어 있던 답변 목록을 Map으로 구성
         Map<Long, ApplicationAnswer> existingAnswerMap = application.getAnswers().stream()
                 .collect(Collectors.toMap(a -> a.getQuestion().getId(), Function.identity()));
 
         for (ApplicationSaveRequest.AnswerInput input : inputs) {
-            RecruitmentQuestion question = recruitmentQuestionRepository.findById(input.questionId())
-                    .orElseThrow(() -> new CustomException(RecruitmentErrorCode.QUESTION_NOT_FOUND));
-
+            RecruitmentQuestion question = questionMap.get(input.questionId());
             String trimmedContent = input.content() != null ? input.content().trim() : "";
 
             if (existingAnswerMap.containsKey(input.questionId())) {
-                // 기존 답변이 있으면 내용만 수정
-                existingAnswerMap.get(input.questionId()).updateContent(input.content());
+                // 기존 답변 업데이트
+                existingAnswerMap.get(input.questionId()).updateContent(trimmedContent);
             } else {
-                // 기존 답변이 없으면 새로 생성하여 연관관계 추가
-                ApplicationAnswer.createAnswer(application, question, input.content());
+                // 신규 답변 생성 및 연관관계 추가
+                ApplicationAnswer.createAnswer(application, question, trimmedContent);
             }
         }
     }
