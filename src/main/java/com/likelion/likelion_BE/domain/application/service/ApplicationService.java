@@ -159,14 +159,21 @@ public class ApplicationService {
 
     // 현재 OPEN 상태인 공고 조회
     private Recruitment getCurrentRecruitment() {
-        return recruitmentRepository.findByStatus(RecruitmentStatus.OPEN)
+        return recruitmentRepository.findFirstByStatusOrderByCreatedAtDesc(RecruitmentStatus.OPEN)
                 .orElseThrow(() -> new CustomException(RecruitmentErrorCode.RECRUITMENT_NOT_FOUND));
     }
 
     // 모집 파트 Id로 파트 조회
-    private RecruitmentPart getPart(Long partId) {
-        return recruitmentPartRepository.findById(partId)
+    private RecruitmentPart getPart(Recruitment recruitment, Long partId) {
+        RecruitmentPart part = recruitmentPartRepository.findById(partId)
                 .orElseThrow(() -> new CustomException(RecruitmentErrorCode.RECRUITMENT_PART_NOT_FOUND));
+
+        // 파트가 현재 모집 공고의 파트가 아니면 예외 발생
+        if (!part.getRecruitment().getId().equals(recruitment.getId())) {
+            throw new CustomException(RecruitmentErrorCode.INVALID_RECRUITMENT_PART); // 에러코드 추가 필요시
+        }
+
+        return part;
     }
 
     // 답변 저장/수정 로직
@@ -180,6 +187,8 @@ public class ApplicationService {
         for (ApplicationSaveRequest.AnswerInput input : inputs) {
             RecruitmentQuestion question = recruitmentQuestionRepository.findById(input.questionId())
                     .orElseThrow(() -> new CustomException(RecruitmentErrorCode.QUESTION_NOT_FOUND));
+
+            String trimmedContent = input.content() != null ? input.content().trim() : "";
 
             if (existingAnswerMap.containsKey(input.questionId())) {
                 // 기존 답변이 있으면 내용만 수정

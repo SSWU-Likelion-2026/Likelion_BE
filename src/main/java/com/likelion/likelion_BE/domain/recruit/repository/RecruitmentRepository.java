@@ -15,5 +15,5 @@ public interface RecruitmentRepository extends JpaRepository<Recruitment, Long> 
     Optional<Recruitment> findByTerm(Integer term);
 
     // 현재 상태에 해당하는 모집 공고 조회
-    Optional<Recruitment> findByStatus(RecruitmentStatus status);
+    Optional<Recruitment> findFirstByStatusOrderByCreatedAtDesc(RecruitmentStatus status);
 }
