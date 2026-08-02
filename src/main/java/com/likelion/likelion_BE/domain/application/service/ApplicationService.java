@@ -140,11 +140,12 @@ public class ApplicationService {
             throw new CustomException(ApplicationErrorCode.ALREADY_SUBMITTED);
         }
 
-        // [검증 4] 필수 질문 답변 여부 및 글자 수 제한 검증
-        validateAnswersForSubmit(recruitment.getId(), part.getId(), request.answers());
-
-        // 답변 업데이트 및 제출 상태(SUBMITTED) 변경
         saveOrUpdateAnswers(application, request.answers());
+
+        // [검증 4] 필수 질문 답변 여부 및 글자 수 제한 검증
+        validateAnswersForSubmit(recruitment.getId(), part.getId(), application.getAnswers());
+
+        // 제출 상태(SUBMITTED) 변경
         application.submit(part);
 
         return application.getId();
@@ -210,7 +211,7 @@ public class ApplicationService {
     }
 
     // 제출 시 엄격한 답변 검증 로직
-    private void validateAnswersForSubmit(Long recruitmentId, Long partId, List<ApplicationSaveRequest.AnswerInput> inputs) {
+    private void validateAnswersForSubmit(Long recruitmentId, Long partId, List<ApplicationAnswer> inputs) {
         // 해당 모집의 (공통 질문 + 선택 파트 질문) 전체 가져오기
         List<RecruitmentQuestion> requiredQuestions = recruitmentQuestionRepository
                 .findAllByRecruitmentIdOrderByQuestionNumberAsc(recruitmentId).stream()
@@ -223,19 +224,11 @@ public class ApplicationService {
                 .collect(Collectors.toSet());
 
         // 유저가 제출한 질문 Id 중 허용되지 않은(잘못된/타 파트) 질문이 있는지 검증
-        if (inputs != null) {
-            for (ApplicationSaveRequest.AnswerInput input : inputs) {
-                if (!validQuestionIds.contains(input.questionId())) {
-                    throw new CustomException(RecruitmentErrorCode.QUESTION_NOT_FOUND); // 혹은 INVALID_QUESTION_ID
-                }
-            }
-        }
-
-        // 유저가 보낸 답변들을 Map으로 정리
         Map<Long, String> answerMap = (inputs != null) ? inputs.stream()
+                .filter(a -> validQuestionIds.contains(a.getQuestion().getId())) // 현재 파트/공통 질문에 속한 답변만
                 .collect(Collectors.toMap(
-                        ApplicationSaveRequest.AnswerInput::questionId,
-                        input -> input.content() == null ? "" : input.content(),
+                        a -> a.getQuestion().getId(),
+                        a -> a.getContent() == null ? "" : a.getContent(),
                         (existing, replacement) -> replacement
                 )) : Collections.emptyMap();
 
