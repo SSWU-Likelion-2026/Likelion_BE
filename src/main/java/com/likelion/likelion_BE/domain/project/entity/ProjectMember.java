@@ -1,10 +1,8 @@
 package com.likelion.likelion_BE.domain.project.entity;
 
 import com.likelion.likelion_BE.domain.project.enums.Part;
-import com.likelion.likelion_BE.domain.recruit.entity.Recruitment;
 import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.resilience.annotation.EnableResilientMethods;
 
 @Entity
 @Getter

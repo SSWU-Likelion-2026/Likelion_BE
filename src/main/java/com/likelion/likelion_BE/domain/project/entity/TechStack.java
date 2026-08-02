@@ -1,14 +1,8 @@
 package com.likelion.likelion_BE.domain.project.entity;
 
-import com.likelion.likelion_BE.common.entity.BaseEntity;
 import com.likelion.likelion_BE.domain.project.enums.Category;
 import jakarta.persistence.*;
 import lombok.*;
-
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 @Entity
 @Getter
