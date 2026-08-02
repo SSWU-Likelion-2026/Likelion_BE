@@ -8,6 +8,7 @@ import lombok.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 @Entity
@@ -66,6 +67,19 @@ public class Project extends BaseEntity {
     @OneToMany(mappedBy = "project", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<ProjectTechStack> techStacks = new ArrayList<>();
+
+    // 컬렉션 캡슐화: Getter 오버라이드 -> 읽기 전용 컬렉션
+    public List<ProjectSlide> getSlides() {
+        return Collections.unmodifiableList(slides);
+    }
+
+    public List<ProjectMember> getMembers() {
+        return Collections.unmodifiableList(members);
+    }
+
+    public List<ProjectTechStack> getTechStacks() {
+        return Collections.unmodifiableList(techStacks);
+    }
 
     // 연관관계 편의 메서드
     public void addSlide(ProjectSlide slide) {
