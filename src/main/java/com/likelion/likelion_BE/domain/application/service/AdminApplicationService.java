@@ -42,7 +42,7 @@ public class AdminApplicationService {
 
     // 관리자 - 지원서 상세 조회
     public AdminApplicationDetailResponse getApplicationDetail(Long applicationId) {
-        Application application = applicationRepository.findById(applicationId)
+        Application application = applicationRepository.findDetailById(applicationId)
                 .orElseThrow(() -> new CustomException(ApplicationErrorCode.APPLICATION_NOT_FOUND));
 
         return AdminApplicationDetailResponse.from(application);

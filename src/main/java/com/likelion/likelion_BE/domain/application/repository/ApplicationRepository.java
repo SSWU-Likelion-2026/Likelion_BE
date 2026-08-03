@@ -24,14 +24,19 @@ public interface ApplicationRepository extends JpaRepository<Application, Long> 
      * 관리자 - 전체 지원서 목록 조회 (파트별, 합불 상태별 동적 필터링 + 페이징)
      */
     @Query("SELECT a FROM Application a " +
+            "LEFT JOIN FETCH a.recruitmentPart " +
             "WHERE a.recruitment.id = :recruitmentId " +
             "AND (:partId IS NULL OR a.recruitmentPart.id = :partId) " +
             "AND (:passStatus IS NULL OR a.passStatus = :passStatus) " +
-            "ORDER BY a.createdAt DESC")
+            "AND (:passStatus IS NULL OR a.passStatus = :passStatus)")
     Page<Application> findAllAdminApplications(
             @Param("recruitmentId") Long recruitmentId,
             @Param("partId") Long partId,
             @Param("passStatus") PassStatus passStatus,
             Pageable pageable
     );
+
+    // 관리자 지원서 상세 조회 (답변, 질문, 파트, 모집공고 한 번에 Fetch)
+    @EntityGraph(attributePaths = {"answers", "answers.question", "recruitmentPart", "recruitment"})
+    Optional<Application> findDetailById(Long id);
 }
