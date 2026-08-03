@@ -1,8 +1,10 @@
 package com.likelion.likelion_BE.domain.application.entity;
 
 import com.likelion.likelion_BE.common.entity.BaseEntity;
+import com.likelion.likelion_BE.common.exception.CustomException;
 import com.likelion.likelion_BE.domain.application.enums.PassStatus;
 import com.likelion.likelion_BE.domain.application.enums.SubmitStatus;
+import com.likelion.likelion_BE.domain.application.exception.ApplicationErrorCode;
 import com.likelion.likelion_BE.domain.recruit.entity.Recruitment;
 import com.likelion.likelion_BE.domain.recruit.entity.RecruitmentPart;
 import jakarta.persistence.*;
@@ -88,6 +90,14 @@ public class Application extends BaseEntity {
         this.recruitmentPart = part;
         this.submitStatus = SubmitStatus.SUBMITTED;
         this.submittedAt = LocalDateTime.now();
+    }
+
+    // 관리자 - 지원서 합불 상태 변경
+    public void updatePassStatus(PassStatus newPassStatus) {
+        if (newPassStatus == null) {
+            throw new CustomException(ApplicationErrorCode.INVALID_PASS_STATUS);
+        }
+        this.passStatus = newPassStatus;
     }
 
 }
