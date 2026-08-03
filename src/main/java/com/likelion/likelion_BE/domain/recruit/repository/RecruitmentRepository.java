@@ -16,4 +16,7 @@ public interface RecruitmentRepository extends JpaRepository<Recruitment, Long> 
 
     // 현재 상태에 해당하는 모집 공고 조회
     Optional<Recruitment> findFirstByStatusOrderByCreatedAtDesc(RecruitmentStatus status);
+
+    // 가장 최근에 생성된 모집 공고 1건
+    Optional<Recruitment> findFirstByOrderByCreatedAtDesc();
 }
