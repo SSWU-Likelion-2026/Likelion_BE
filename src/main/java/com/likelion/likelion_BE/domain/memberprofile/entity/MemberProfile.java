@@ -23,7 +23,7 @@ import lombok.NoArgsConstructor;
         ),
         indexes = @Index(
                 name = "idx_member_profile_search",
-                columnList = "term, member_type, member_group, position"
+                columnList = "term, member_group, member_type"
         )
 )
 @Getter

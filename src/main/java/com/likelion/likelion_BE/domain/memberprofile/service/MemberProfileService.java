@@ -13,6 +13,7 @@ import com.likelion.likelion_BE.domain.memberprofile.repository.MemberProfileRep
 import com.likelion.likelion_BE.domain.user.entity.User;
 import com.likelion.likelion_BE.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -50,8 +51,15 @@ public class MemberProfileService {
             throw new CustomException(MemberProfileErrorCode.MEMBER_PROFILE_ALREADY_EXISTS);
         }
 
-        MemberProfile savedProfile = memberProfileRepository.save(MemberProfile.create(user, request));
-        return MemberProfileDetailResponse.from(savedProfile);
+        try {
+            MemberProfile savedProfile = memberProfileRepository.saveAndFlush(MemberProfile.create(user, request));
+            return MemberProfileDetailResponse.from(savedProfile);
+        } catch (DataIntegrityViolationException exception) {
+            if (isDuplicateProfileConstraint(exception)) {
+                throw new CustomException(MemberProfileErrorCode.MEMBER_PROFILE_ALREADY_EXISTS);
+            }
+            throw exception;
+        }
     }
 
     public MemberProfileDetailResponse getMyProfile(Principal principal, Integer term) {
@@ -90,5 +98,13 @@ public class MemberProfileService {
         }
         return userRepository.findByEmail(principal.getName())
                 .orElseThrow(() -> new CustomException(MemberProfileErrorCode.USER_NOT_FOUND));
+    }
+
+    private boolean isDuplicateProfileConstraint(DataIntegrityViolationException exception) {
+        String message = exception.getMostSpecificCause().getMessage();
+        return message != null && (
+                message.contains("uk_member_profile_user_term")
+                        || message.contains("Duplicate entry")
+        );
     }
 }
