@@ -7,9 +7,11 @@ import com.likelion.likelion_BE.domain.user.dto.request.SignupRequest;
 import com.likelion.likelion_BE.domain.user.dto.request.TokenRefreshRequest;
 import com.likelion.likelion_BE.domain.user.dto.response.TokenRefreshResponse;
 import com.likelion.likelion_BE.domain.user.dto.response.UserResponse;
+import com.likelion.likelion_BE.domain.user.entity.EmailVerification;
 import com.likelion.likelion_BE.domain.user.entity.RefreshToken;
 import com.likelion.likelion_BE.domain.user.entity.User;
 import com.likelion.likelion_BE.domain.user.exception.AuthErrorCode;
+import com.likelion.likelion_BE.domain.user.repository.EmailVerificationRepository;
 import com.likelion.likelion_BE.domain.user.repository.RefreshTokenRepository;
 import com.likelion.likelion_BE.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +36,7 @@ public class UserService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final EmailVerificationRepository emailVerificationRepository;
 
     @Transactional
     public UserResponse signup(SignupRequest request) {
@@ -50,6 +53,8 @@ public class UserService {
         if (userRepository.existsByEmail(email)) {
             throw new CustomException(AuthErrorCode.DUPLICATE_EMAIL);
         }
+
+        validateEmailVerified(email);
 
         User user = userRepository.save(
                 User.createLocalUser(
@@ -121,6 +126,15 @@ public class UserService {
                 .orElseThrow(() -> new CustomException(AuthErrorCode.UNAUTHORIZED));
 
         refreshTokenRepository.deleteByUser(user);
+    }
+
+    private void validateEmailVerified(String email) {
+        EmailVerification verification = emailVerificationRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException(AuthErrorCode.EMAIL_NOT_VERIFIED));
+
+        if (!verification.isVerified()) {
+            throw new CustomException(AuthErrorCode.EMAIL_NOT_VERIFIED);
+        }
     }
 
     private TokenRefreshResponse issueTokens(User user) {
