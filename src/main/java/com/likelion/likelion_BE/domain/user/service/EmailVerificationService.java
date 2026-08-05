@@ -43,6 +43,13 @@ public class EmailVerificationService {
     @Value("${spring.mail.username}")
     private String senderEmail;
 
+    /**
+     * Sends a verification code to a normalized Sungshin University email address.
+     *
+     * @param request the request containing the email address to verify
+     * @return the normalized email address and verification-code expiration period
+     * @throws CustomException if the email is invalid, already registered, requested too soon, or the email cannot be sent
+     */
     @Transactional
     public EmailCodeSendResponse sendVerificationCode(EmailCodeSendRequest request) {
         String email = normalizeEmail(request.email());
@@ -82,6 +89,12 @@ public class EmailVerificationService {
         return new EmailCodeSendResponse(email, CODE_EXPIRE_SECONDS);
     }
 
+    /**
+     * Verifies the code submitted for an email address.
+     *
+     * @param request the email address and verification code to validate
+     * @return a response containing the normalized email address and verification status
+     */
     @Transactional
     public EmailVerificationResponse verifyCode(EmailVerificationRequest request) {
         String email = normalizeEmail(request.email());
@@ -106,6 +119,13 @@ public class EmailVerificationService {
         return new EmailVerificationResponse(email, true);
     }
 
+    /**
+     * Sends an email containing the verification code.
+     *
+     * @param recipientEmail the email address that receives the verification code
+     * @param code           the verification code to include in the email
+     * @throws CustomException if the email cannot be sent
+     */
     private void sendMail(String recipientEmail, String code) {
         try {
             SimpleMailMessage message = new SimpleMailMessage();
@@ -131,6 +151,11 @@ public class EmailVerificationService {
 
     private static final String CODE_CHARACTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
+    /**
+     * Generates a six-character verification code using secure random selection.
+     *
+     * @return a randomly generated verification code containing uppercase letters and digits
+     */
     private String generateCode() {
         SecureRandom random = new SecureRandom();
         StringBuilder code = new StringBuilder(6);
@@ -143,10 +168,21 @@ public class EmailVerificationService {
         return code.toString();
     }
 
+    /**
+     * Normalizes an email address by removing surrounding whitespace and converting it to lowercase.
+     *
+     * @param email the email address to normalize
+     * @return the normalized email address
+     */
     private String normalizeEmail(String email) {
         return email.trim().toLowerCase();
     }
 
+    /**
+     * Validates that an email address uses the Sungshin University email domain.
+     *
+     * @param email the email address to validate
+     */
     private void validateSungshinEmail(String email) {
         if (!email.endsWith(SUNGSHIN_EMAIL_DOMAIN)) {
             throw new CustomException(AuthErrorCode.NOT_SUNGSHIN_EMAIL);

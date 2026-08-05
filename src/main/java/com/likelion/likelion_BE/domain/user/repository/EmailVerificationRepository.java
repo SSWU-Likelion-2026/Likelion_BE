@@ -7,5 +7,11 @@ import java.util.Optional;
 
 public interface EmailVerificationRepository extends JpaRepository<EmailVerification, Long> {
 
-    Optional<EmailVerification> findByEmail(String email);
+    /**
+ * Finds an email verification record by email address.
+ *
+ * @param email the email address to search for
+ * @return the matching email verification record, if one exists
+ */
+Optional<EmailVerification> findByEmail(String email);
 }

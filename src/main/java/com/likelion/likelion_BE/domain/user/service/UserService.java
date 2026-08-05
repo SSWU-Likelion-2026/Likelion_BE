@@ -38,6 +38,13 @@ public class UserService {
     private final JwtTokenProvider jwtTokenProvider;
     private final EmailVerificationRepository emailVerificationRepository;
 
+    /**
+     * Registers a local user after validating the email domain, password confirmation,
+     * email uniqueness, and email verification status.
+     *
+     * @param request the signup details
+     * @return the registered user and issued authentication tokens
+     */
     @Transactional
     public UserResponse signup(SignupRequest request) {
         String email = request.email().trim().toLowerCase();
@@ -120,6 +127,12 @@ public class UserService {
         return issueTokens(user);
     }
 
+    /**
+     * Logs out the user associated with the specified email address.
+     *
+     * @param email the user's email address
+     * @throws CustomException if no user is associated with the email address
+     */
     @Transactional
     public void logout(String email) {
         User user = userRepository.findByEmail(email)
@@ -128,6 +141,12 @@ public class UserService {
         refreshTokenRepository.deleteByUser(user);
     }
 
+    /**
+     * Verifies that the specified email address has completed email verification.
+     *
+     * @param email the email address to verify
+     * @throws CustomException if no verification record exists or the email address is not verified
+     */
     private void validateEmailVerified(String email) {
         EmailVerification verification = emailVerificationRepository.findByEmail(email)
                 .orElseThrow(() -> new CustomException(AuthErrorCode.EMAIL_NOT_VERIFIED));
@@ -137,6 +156,11 @@ public class UserService {
         }
     }
 
+    /**
+     * Issues access and refresh tokens for a user while maintaining a single active refresh-token session.
+     *
+     * @return tokens and the access-token expiration time
+     */
     private TokenRefreshResponse issueTokens(User user) {
         String accessToken = jwtTokenProvider.createAccessToken(
                 user.getEmail(),

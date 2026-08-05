@@ -37,7 +37,14 @@ public class EmailVerification {
     @Column(name = "last_sent_at", nullable = false)
     private LocalDateTime lastSentAt;
 
-    // 생성 메서드
+    /**
+     * Creates a new email verification record with the supplied email, encrypted code, and expiration time.
+     *
+     * @param email         the email address to verify
+     * @param encryptedCode the encrypted verification code
+     * @param expiresAt     the time at which the verification expires
+     * @return a new unverified email verification record
+     */
     public static EmailVerification createEmailVerification(
             String email,
             String encryptedCode,
@@ -59,12 +66,21 @@ public class EmailVerification {
         this.verified = true;
     }
 
-    // 만료 여부 확인
+    /**
+     * Determines whether the verification has expired.
+     *
+     * @return {@code true} if the current time is after the expiration time, {@code false} otherwise.
+     */
     public boolean isExpired() {
         return LocalDateTime.now().isAfter(this.expiresAt);
     }
 
-    // 코드 재발급
+    /**
+     * Reissues the verification code and resets the verification status.
+     *
+     * @param encryptedCode the replacement encrypted verification code
+     * @param newExpiresAt the expiration time for the replacement code
+     */
     public void reissueCode(String encryptedCode, LocalDateTime newExpiresAt) {
         this.code = encryptedCode;
         this.expiresAt = newExpiresAt;
@@ -72,6 +88,12 @@ public class EmailVerification {
         this.verified = false;
     }
 
+    /**
+     * Determines whether another verification code can be sent.
+     *
+     * @param cooldownSeconds the required interval since the last code was sent
+     * @return {@code true} if the cooldown has elapsed, {@code false} otherwise
+     */
     public boolean canResendAfter(long cooldownSeconds) {
         return !this.lastSentAt
                 .plusSeconds(cooldownSeconds)

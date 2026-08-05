@@ -29,6 +29,12 @@ public class UserController {
     private final UserService userService;
     private final EmailVerificationService emailVerificationService;
 
+    /**
+     * Registers a new user with the supplied signup details.
+     *
+     * @param request the validated signup details
+     * @return the registered user's information
+     */
     @Operation(
             summary = "로컬 회원가입",
             description = "")
@@ -62,6 +68,12 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.onSuccess(null));
     }
 
+    /**
+     * Sends an email verification code for the specified request.
+     *
+     * @param request the email verification code delivery request
+     * @return the email verification code delivery result
+     */
     @Operation(
             summary = "이메일 인증코드 전송",
             description = "")
@@ -74,6 +86,12 @@ public class UserController {
         );
     }
 
+    /**
+     * Verifies an email authentication code.
+     *
+     * @param request the email address and authentication code to verify
+     * @return the email verification result
+     */
     @Operation(
             summary = "이메일 인증코드 확인",
             description = "")

@@ -25,6 +25,13 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
+    /**
+     * Configures the stateless security filter chain with JWT authentication and public access
+     * for authentication and API documentation endpoints.
+     *
+     * @return the configured security filter chain
+     * @throws Exception if the security configuration cannot be built
+     */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
