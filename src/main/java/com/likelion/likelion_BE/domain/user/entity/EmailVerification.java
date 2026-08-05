@@ -21,7 +21,7 @@ public class EmailVerification {
     @Column(name = "email", nullable = false, length = 100)
     private String email;
 
-    @Column(name = "code", nullable = false, length = 10)
+    @Column(name = "code", nullable = false, length = 100)
     private String code;
 
     @Builder.Default
@@ -34,13 +34,23 @@ public class EmailVerification {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "last_sent_at", nullable = false)
+    private LocalDateTime lastSentAt;
+
     // 생성 메서드
-    public static EmailVerification createEmailVerification(String email, String code, LocalDateTime expiresAt) {
+    public static EmailVerification createEmailVerification(
+            String email,
+            String encryptedCode,
+            LocalDateTime expiresAt
+    ) {
+        LocalDateTime now = LocalDateTime.now();
+
         return EmailVerification.builder()
                 .email(email)
-                .code(code)
+                .code(encryptedCode)
                 .expiresAt(expiresAt)
-                .createdAt(LocalDateTime.now())
+                .createdAt(now)
+                .lastSentAt(now)
                 .build();
     }
 
@@ -55,9 +65,16 @@ public class EmailVerification {
     }
 
     // 코드 재발급
-    public void reissueCode(String newCode, LocalDateTime newExpiresAt) {
-        this.code = newCode;
+    public void reissueCode(String encryptedCode, LocalDateTime newExpiresAt) {
+        this.code = encryptedCode;
         this.expiresAt = newExpiresAt;
+        this.lastSentAt = LocalDateTime.now();
         this.verified = false;
+    }
+
+    public boolean canResendAfter(long cooldownSeconds) {
+        return !this.lastSentAt
+                .plusSeconds(cooldownSeconds)
+                .isAfter(LocalDateTime.now());
     }
 }
