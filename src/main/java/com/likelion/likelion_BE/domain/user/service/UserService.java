@@ -1,22 +1,29 @@
 package com.likelion.likelion_BE.domain.user.service;
 
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.likelion.likelion_BE.common.exception.CustomException;
 import com.likelion.likelion_BE.config.jwt.JwtTokenProvider;
+import com.likelion.likelion_BE.domain.user.dto.request.GoogleLoginRequest;
 import com.likelion.likelion_BE.domain.user.dto.request.LoginRequest;
 import com.likelion.likelion_BE.domain.user.dto.request.SignupRequest;
 import com.likelion.likelion_BE.domain.user.dto.request.TokenRefreshRequest;
+import com.likelion.likelion_BE.domain.user.dto.response.GoogleLoginResponse;
 import com.likelion.likelion_BE.domain.user.dto.response.TokenRefreshResponse;
 import com.likelion.likelion_BE.domain.user.dto.response.UserResponse;
 import com.likelion.likelion_BE.domain.user.entity.EmailVerification;
 import com.likelion.likelion_BE.domain.user.entity.RefreshToken;
 import com.likelion.likelion_BE.domain.user.entity.User;
+import com.likelion.likelion_BE.domain.user.enums.Provider;
 import com.likelion.likelion_BE.domain.user.exception.AuthErrorCode;
 import com.likelion.likelion_BE.domain.user.repository.EmailVerificationRepository;
 import com.likelion.likelion_BE.domain.user.repository.RefreshTokenRepository;
 import com.likelion.likelion_BE.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
@@ -37,6 +44,12 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final EmailVerificationRepository emailVerificationRepository;
+    private final GoogleIdTokenVerifier googleIdTokenVerifier;
+    private final S3Service s3Service;
+
+    @Lazy
+    @org.springframework.beans.factory.annotation.Autowired
+    private UserService self;
 
     @Transactional
     public UserResponse signup(SignupRequest request) {
@@ -165,6 +178,94 @@ public class UserService {
                 refreshTokenValue,
                 jwtTokenProvider.getAccessTokenExpiration()
         );
+    }
+
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public GoogleLoginResponse googleLogin(GoogleLoginRequest request) {
+        GoogleIdToken googleIdToken;
+
+        try {
+            googleIdToken = googleIdTokenVerifier.verify(request.idToken());
+        } catch (Exception e) {
+            throw new CustomException(AuthErrorCode.INVALID_SOCIAL_TOKEN);
+        }
+
+        if (googleIdToken == null) {
+            throw new CustomException(AuthErrorCode.INVALID_SOCIAL_TOKEN);
+        }
+
+        GoogleIdToken.Payload payload = googleIdToken.getPayload();
+
+        String providerId = payload.getSubject(); // Google sub: 고유 식별자
+        String email = payload.getEmail();
+        String name = (String) payload.get("name");
+        String googleImageUrl = (String) payload.get("picture");
+
+        if (providerId == null
+                || email == null
+                || !Boolean.TRUE.equals(payload.getEmailVerified())) {
+            throw new CustomException(AuthErrorCode.INVALID_SOCIAL_TOKEN);
+        }
+
+        // signup/login과 동일한 규칙으로 정규화. 대소문자/공백 차이로 인한
+        // 중복 계정 생성 및 JWT subject 불일치를 막기 위함.
+        email = email.trim().toLowerCase();
+
+        boolean alreadyExists = userRepository.findByProviderAndProviderId(Provider.GOOGLE, providerId)
+                .isPresent();
+
+        String profileImageUrl = null;
+        if (!alreadyExists && googleImageUrl != null) {
+            // DB 트랜잭션 밖에서 수행: HTTP 다운로드(최대 5초) + S3 업로드가
+            // DB 커넥션을 붙잡지 않도록 분리.
+            boolean localEmailTaken = userRepository.existsByEmail(email);
+            if (!localEmailTaken) {
+                profileImageUrl = s3Service.uploadFromUrl(googleImageUrl);
+            }
+        }
+
+        // DB 작업은 별도 트랜잭션 메서드로 위임 (self 프록시를 통해 호출)
+        return self.processGoogleLogin(providerId, email, name, profileImageUrl);
+    }
+
+    @Transactional
+    protected GoogleLoginResponse processGoogleLogin(
+            String providerId,
+            String email,
+            String name,
+            String profileImageUrl
+    ) {
+        User user = userRepository.findByProviderAndProviderId(
+                Provider.GOOGLE,
+                providerId
+        ).orElse(null);
+
+        boolean isNewUser = false;
+
+        if (user == null) {
+            /*
+             * 로컬 계정과 Google 계정을 이메일만으로 자동 연결하지 않는다.
+             * 동일 이메일의 LOCAL 계정이 있다면 중복으로 처리한다.
+             */
+            if (userRepository.existsByEmail(email)) {
+                throw new CustomException(AuthErrorCode.DUPLICATE_EMAIL);
+            }
+
+            user = userRepository.save(
+                    User.createSocialUser(
+                            email,
+                            name == null || name.isBlank() ? "사용자" : name,
+                            providerId,
+                            profileImageUrl
+                    )
+            );
+
+            isNewUser = true;
+        }
+
+        TokenRefreshResponse tokenResponse = issueTokens(user);
+
+        return GoogleLoginResponse.of(user, tokenResponse, isNewUser);
     }
 
     private String hashToken(String token) {

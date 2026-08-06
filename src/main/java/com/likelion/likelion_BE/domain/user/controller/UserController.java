@@ -2,10 +2,7 @@ package com.likelion.likelion_BE.domain.user.controller;
 
 import com.likelion.likelion_BE.common.response.ApiResponse;
 import com.likelion.likelion_BE.domain.user.dto.request.*;
-import com.likelion.likelion_BE.domain.user.dto.response.EmailCodeSendResponse;
-import com.likelion.likelion_BE.domain.user.dto.response.EmailVerificationResponse;
-import com.likelion.likelion_BE.domain.user.dto.response.TokenRefreshResponse;
-import com.likelion.likelion_BE.domain.user.dto.response.UserResponse;
+import com.likelion.likelion_BE.domain.user.dto.response.*;
 import com.likelion.likelion_BE.domain.user.service.EmailVerificationService;
 import com.likelion.likelion_BE.domain.user.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -66,23 +63,23 @@ public class UserController {
             summary = "이메일 인증코드 전송",
             description = "")
     @PostMapping("/email/verification-code")
-    public ResponseEntity<ApiResponse<EmailCodeSendResponse>> sendVerificationCode(
-            @Valid @RequestBody EmailCodeSendRequest request
-    ) {
-        return ResponseEntity.ok(
-                ApiResponse.onSuccess(emailVerificationService.sendVerificationCode(request))
-        );
+    public ResponseEntity<ApiResponse<EmailCodeSendResponse>> sendVerificationCode(@Valid @RequestBody EmailCodeSendRequest request) {
+        return ResponseEntity.ok(ApiResponse.onSuccess(emailVerificationService.sendVerificationCode(request)));
     }
 
     @Operation(
             summary = "이메일 인증코드 확인",
             description = "")
     @PostMapping("/email/verify")
-    public ResponseEntity<ApiResponse<EmailVerificationResponse>> verifyCode(
-            @Valid @RequestBody EmailVerificationRequest request
-    ) {
-        return ResponseEntity.ok(
-                ApiResponse.onSuccess(emailVerificationService.verifyCode(request))
-        );
+    public ResponseEntity<ApiResponse<EmailVerificationResponse>> verifyCode(@Valid @RequestBody EmailVerificationRequest request) {
+        return ResponseEntity.ok(ApiResponse.onSuccess(emailVerificationService.verifyCode(request)));
+    }
+
+    @Operation(
+            summary = "구글 로그인",
+            description = "")
+    @PostMapping("/login/google")
+    public ResponseEntity<ApiResponse<GoogleLoginResponse>> googleLogin(@Valid @RequestBody GoogleLoginRequest request) {
+        return ResponseEntity.ok(ApiResponse.onSuccess(userService.googleLogin(request)));
     }
 }

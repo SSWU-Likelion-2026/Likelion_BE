@@ -41,3 +41,14 @@ jwt:
 cors:
   allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
 
+google:
+  oauth:
+    client-id: ${GOOGLE_CLIENT_ID}
+
+app:
+  s3:
+    bucket: ${BUCKET_NAME}
+    region: ap-northeast-2
+    root-prefix: profile-images
+    cloudfront-domain: ""
+    presign-seconds: 3600
