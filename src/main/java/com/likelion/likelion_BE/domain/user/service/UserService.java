@@ -1,15 +1,20 @@
 package com.likelion.likelion_BE.domain.user.service;
 
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.likelion.likelion_BE.common.exception.CustomException;
 import com.likelion.likelion_BE.config.jwt.JwtTokenProvider;
+import com.likelion.likelion_BE.domain.user.dto.request.GoogleLoginRequest;
 import com.likelion.likelion_BE.domain.user.dto.request.LoginRequest;
 import com.likelion.likelion_BE.domain.user.dto.request.SignupRequest;
 import com.likelion.likelion_BE.domain.user.dto.request.TokenRefreshRequest;
+import com.likelion.likelion_BE.domain.user.dto.response.GoogleLoginResponse;
 import com.likelion.likelion_BE.domain.user.dto.response.TokenRefreshResponse;
 import com.likelion.likelion_BE.domain.user.dto.response.UserResponse;
 import com.likelion.likelion_BE.domain.user.entity.EmailVerification;
 import com.likelion.likelion_BE.domain.user.entity.RefreshToken;
 import com.likelion.likelion_BE.domain.user.entity.User;
+import com.likelion.likelion_BE.domain.user.enums.Provider;
 import com.likelion.likelion_BE.domain.user.exception.AuthErrorCode;
 import com.likelion.likelion_BE.domain.user.repository.EmailVerificationRepository;
 import com.likelion.likelion_BE.domain.user.repository.RefreshTokenRepository;
@@ -37,6 +42,8 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final EmailVerificationRepository emailVerificationRepository;
+    private final GoogleIdTokenVerifier googleIdTokenVerifier;
+    private final S3Service s3Service;
 
     @Transactional
     public UserResponse signup(SignupRequest request) {
@@ -165,6 +172,71 @@ public class UserService {
                 refreshTokenValue,
                 jwtTokenProvider.getAccessTokenExpiration()
         );
+    }
+
+    @Transactional
+    public GoogleLoginResponse googleLogin(GoogleLoginRequest request) {
+        GoogleIdToken googleIdToken;
+
+        try {
+            googleIdToken = googleIdTokenVerifier.verify(request.idToken());
+        } catch (Exception e) {
+            throw new CustomException(AuthErrorCode.INVALID_SOCIAL_TOKEN);
+        }
+
+        if (googleIdToken == null) {
+            throw new CustomException(AuthErrorCode.INVALID_SOCIAL_TOKEN);
+        }
+
+        GoogleIdToken.Payload payload = googleIdToken.getPayload();
+
+        String providerId = payload.getSubject(); // Google sub: 고유 식별자
+        String email = payload.getEmail();
+        String name = (String) payload.get("name");
+        String googleImageUrl = (String) payload.get("picture");
+
+        if (providerId == null
+                || email == null
+                || !Boolean.TRUE.equals(payload.getEmailVerified())) {
+            throw new CustomException(AuthErrorCode.INVALID_SOCIAL_TOKEN);
+        }
+
+        User user = userRepository.findByProviderAndProviderId(
+                Provider.GOOGLE,
+                providerId
+        ).orElse(null);
+
+        boolean isNewUser = false;
+
+        if (user == null) {
+            /*
+             * 로컬 계정과 Google 계정을 이메일만으로 자동 연결하지 않는다.
+             * 동일 이메일의 LOCAL 계정이 있다면 중복으로 처리한다.
+             */
+            if (userRepository.existsByEmail(email)) {
+                throw new CustomException(AuthErrorCode.DUPLICATE_EMAIL);
+            }
+
+            String profileImageUrl = googleImageUrl == null
+                    ? null
+                    : s3Service.uploadFromUrl(googleImageUrl);
+
+            user = userRepository.save(
+                    User.createSocialUser(
+                            email,
+                            name == null || name.isBlank() ? "사용자" : name,
+                            providerId,
+                            profileImageUrl
+                    )
+            );
+
+            isNewUser = true;
+        }
+
+        // 기존 회원가입/로그인과 동일한 Access·Refresh Token 발급 및 DB 저장 로직 재사용
+        TokenRefreshResponse tokenResponse = issueTokens(user);
+
+        return GoogleLoginResponse.of(user, tokenResponse, isNewUser);
     }
 
     private String hashToken(String token) {

@@ -19,6 +19,7 @@ public enum AuthErrorCode implements BaseCode {
     INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "AUTH4010", "이메일 또는 비밀번호가 일치하지 않습니다."),
     INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH4011", "유효하지 않은 Refresh Token입니다."),
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "AUTH4012", "인증이 필요합니다."),
+    INVALID_SOCIAL_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH4013", "유효하지 않은 소셜 로그인 토큰입니다."),
     FORBIDDEN(HttpStatus.FORBIDDEN, "AUTH4030", "접근 권한이 없습니다."),
     TOO_MANY_VERIFICATION_REQUESTS(HttpStatus.TOO_MANY_REQUESTS, "AUTH4291", "인증번호 발송 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.");
 
