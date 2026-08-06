@@ -218,7 +218,10 @@ public class UserService {
         if (!alreadyExists && googleImageUrl != null) {
             // DB 트랜잭션 밖에서 수행: HTTP 다운로드(최대 5초) + S3 업로드가
             // DB 커넥션을 붙잡지 않도록 분리.
-            profileImageUrl = s3Service.uploadFromUrl(googleImageUrl);
+            boolean localEmailTaken = userRepository.existsByEmail(email);
+            if (!localEmailTaken) {
+                profileImageUrl = s3Service.uploadFromUrl(googleImageUrl);
+            }
         }
 
         // DB 작업은 별도 트랜잭션 메서드로 위임 (self 프록시를 통해 호출)
