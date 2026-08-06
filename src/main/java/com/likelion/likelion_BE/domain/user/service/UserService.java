@@ -20,8 +20,10 @@ import com.likelion.likelion_BE.domain.user.repository.EmailVerificationReposito
 import com.likelion.likelion_BE.domain.user.repository.RefreshTokenRepository;
 import com.likelion.likelion_BE.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
@@ -44,6 +46,10 @@ public class UserService {
     private final EmailVerificationRepository emailVerificationRepository;
     private final GoogleIdTokenVerifier googleIdTokenVerifier;
     private final S3Service s3Service;
+
+    @Lazy
+    @org.springframework.beans.factory.annotation.Autowired
+    private UserService self;
 
     @Transactional
     public UserResponse signup(SignupRequest request) {
@@ -174,7 +180,7 @@ public class UserService {
         );
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public GoogleLoginResponse googleLogin(GoogleLoginRequest request) {
         GoogleIdToken googleIdToken;
 
@@ -201,6 +207,31 @@ public class UserService {
             throw new CustomException(AuthErrorCode.INVALID_SOCIAL_TOKEN);
         }
 
+        // signup/login과 동일한 규칙으로 정규화. 대소문자/공백 차이로 인한
+        // 중복 계정 생성 및 JWT subject 불일치를 막기 위함.
+        email = email.trim().toLowerCase();
+
+        boolean alreadyExists = userRepository.findByProviderAndProviderId(Provider.GOOGLE, providerId)
+                .isPresent();
+
+        String profileImageUrl = null;
+        if (!alreadyExists && googleImageUrl != null) {
+            // DB 트랜잭션 밖에서 수행: HTTP 다운로드(최대 5초) + S3 업로드가
+            // DB 커넥션을 붙잡지 않도록 분리.
+            profileImageUrl = s3Service.uploadFromUrl(googleImageUrl);
+        }
+
+        // DB 작업은 별도 트랜잭션 메서드로 위임 (self 프록시를 통해 호출)
+        return self.processGoogleLogin(providerId, email, name, profileImageUrl);
+    }
+
+    @Transactional
+    protected GoogleLoginResponse processGoogleLogin(
+            String providerId,
+            String email,
+            String name,
+            String profileImageUrl
+    ) {
         User user = userRepository.findByProviderAndProviderId(
                 Provider.GOOGLE,
                 providerId
@@ -217,10 +248,6 @@ public class UserService {
                 throw new CustomException(AuthErrorCode.DUPLICATE_EMAIL);
             }
 
-            String profileImageUrl = googleImageUrl == null
-                    ? null
-                    : s3Service.uploadFromUrl(googleImageUrl);
-
             user = userRepository.save(
                     User.createSocialUser(
                             email,
@@ -233,7 +260,6 @@ public class UserService {
             isNewUser = true;
         }
 
-        // 기존 회원가입/로그인과 동일한 Access·Refresh Token 발급 및 DB 저장 로직 재사용
         TokenRefreshResponse tokenResponse = issueTokens(user);
 
         return GoogleLoginResponse.of(user, tokenResponse, isNewUser);
