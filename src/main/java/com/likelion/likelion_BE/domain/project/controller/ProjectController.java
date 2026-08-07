@@ -21,7 +21,7 @@ public class ProjectController {
 
     private final ProjectService projectService;
 
-    @Operation(summary = "프로젝트 생성", description = "운영진 권한을 가진 사용자가 새로운 프로젝트를 등록합니다.")
+    @Operation(summary = "프로젝트 생성", description = "운영진 권한(LEADER, MANAGER)을 가진 사용자가 새로운 프로젝트를 등록합니다.")
     @PostMapping
     public ResponseEntity<ApiResponse<ProjectCreateUpdateResponse>> createProject(
             @AuthenticationPrincipal UserDetails userDetails,
@@ -50,5 +50,19 @@ public class ProjectController {
     ) {
         projectService.deleteProject(projectId, userDetails.getUsername());
         return ResponseEntity.ok(ApiResponse.onSuccess(null));
+    }
+}
+
+    // HOME 조회
+    @Operation(summary = "최근 프로젝트 조회", description = "홈 화면에 표시할 프로젝트를 최신 등록 순으로 조회합니다.")
+    @GetMapping
+    public ApiResponse<List<RecentProjectResponse>> getRecentProjects(
+            @Parameter(description = "조회 개수 (기본 3개, 최대 10개)", example = "3")
+            @RequestParam(defaultValue = "3")
+            @Min(value = 1, message = "조회 개수는 1개 이상이어야 합니다.")
+            @Max(value = 10, message = "조회 개수는 최대 10개까지 가능합니다.")
+            int size
+    ) {
+        return ApiResponse.onSuccess(projectService.getRecentProjects(size));
     }
 }

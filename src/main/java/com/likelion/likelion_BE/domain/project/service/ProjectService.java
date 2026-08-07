@@ -15,6 +15,11 @@ import com.likelion.likelion_BE.domain.user.entity.User;
 import com.likelion.likelion_BE.domain.user.enums.Role;
 import com.likelion.likelion_BE.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import com.likelion.likelion_BE.domain.project.dto.response.RecentProjectResponse;
+import com.likelion.likelion_BE.domain.project.repository.ProjectRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -150,5 +155,20 @@ public class ProjectService {
         if (role != Role.LEADER && role != Role.MANAGER) {
             throw new CustomException(errorCode);
         }
+    }
+}
+
+
+    // HOME 조회
+    public List<RecentProjectResponse> getRecentProjects(int size) {
+        PageRequest pageRequest = PageRequest.of(
+                0,
+                size,
+                Sort.by(Sort.Direction.DESC, "createdAt")
+        );
+
+        return projectRepository.findAllByDeletedAtIsNull(pageRequest).stream()
+                .map(RecentProjectResponse::from)
+                .toList();
     }
 }
