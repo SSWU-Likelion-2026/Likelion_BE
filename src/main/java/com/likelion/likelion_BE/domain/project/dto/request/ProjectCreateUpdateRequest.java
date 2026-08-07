@@ -57,7 +57,9 @@ public record ProjectCreateUpdateRequest(
 
         @NotEmpty(message = "프로젝트 팀원 정보는 필수 입력 항목입니다.")
         @Valid
-        List<ProjectMemberRequest> members,
+        List<
+                @NotNull(message = "팀원 정보는 null일 수 없습니다.")
+                ProjectMemberRequest> members,
 
         @NotEmpty(message = "기술 스택은 최소 1개 이상 선택해야 합니다.")
         List<Long> techStackIds
