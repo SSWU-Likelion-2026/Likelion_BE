@@ -1,6 +1,8 @@
 package com.likelion.likelion_BE.domain.memberprofile.service;
 
 import com.likelion.likelion_BE.common.exception.CustomException;
+import com.likelion.likelion_BE.domain.application.enums.PassStatus;
+import com.likelion.likelion_BE.domain.application.repository.ApplicationRepository;
 import com.likelion.likelion_BE.domain.memberprofile.dto.request.MemberProfileCreateRequest;
 import com.likelion.likelion_BE.domain.memberprofile.dto.request.MemberProfileUpdateRequest;
 import com.likelion.likelion_BE.domain.memberprofile.dto.response.MemberProfileDetailResponse;
@@ -11,6 +13,7 @@ import com.likelion.likelion_BE.domain.memberprofile.enums.MemberType;
 import com.likelion.likelion_BE.domain.memberprofile.exception.MemberProfileErrorCode;
 import com.likelion.likelion_BE.domain.memberprofile.repository.MemberProfileRepository;
 import com.likelion.likelion_BE.domain.user.entity.User;
+import com.likelion.likelion_BE.domain.user.enums.Role;
 import com.likelion.likelion_BE.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -27,6 +30,7 @@ public class MemberProfileService {
 
     private final MemberProfileRepository memberProfileRepository;
     private final UserRepository userRepository;
+    private final ApplicationRepository applicationRepository;
 
     public List<MemberProfileListResponse> getProfiles(
             Integer term,
@@ -46,6 +50,7 @@ public class MemberProfileService {
     @Transactional
     public MemberProfileDetailResponse createMyProfile(Principal principal, MemberProfileCreateRequest request) {
         User user = getCurrentUser(principal);
+        validateProfileWritePermission(user, request.term());
         Long userId = user.getId();
         if (memberProfileRepository.existsByUserIdAndTerm(userId, request.term())) {
             throw new CustomException(MemberProfileErrorCode.MEMBER_PROFILE_ALREADY_EXISTS);
@@ -72,14 +77,18 @@ public class MemberProfileService {
             Integer term,
             MemberProfileUpdateRequest request
     ) {
-        MemberProfile profile = findMyProfile(getCurrentUser(principal).getId(), term);
+        User user = getCurrentUser(principal);
+        validateProfileWritePermission(user, term);
+        MemberProfile profile = findMyProfile(user.getId(), term);
         profile.update(request);
         return MemberProfileDetailResponse.from(profile);
     }
 
     @Transactional
     public void deleteMyProfile(Principal principal, Integer term) {
-        memberProfileRepository.delete(findMyProfile(getCurrentUser(principal).getId(), term));
+        User user = getCurrentUser(principal);
+        validateProfileWritePermission(user, term);
+        memberProfileRepository.delete(findMyProfile(user.getId(), term));
     }
 
     private MemberProfile findProfile(Long profileId) {
@@ -98,6 +107,24 @@ public class MemberProfileService {
         }
         return userRepository.findByEmail(principal.getName())
                 .orElseThrow(() -> new CustomException(MemberProfileErrorCode.USER_NOT_FOUND));
+    }
+
+    private void validateProfileWritePermission(User user, Integer term) {
+        boolean isStaff = user.getRole() == Role.LEADER || user.getRole() == Role.MANAGER;
+        if (isStaff) {
+            return;
+        }
+
+        boolean isFinalAccepted = applicationRepository
+                .existsByUserIdAndRecruitment_TermAndPassStatus(
+                        user.getId(),
+                        term,
+                        PassStatus.FINAL_PASS
+                );
+
+        if (!isFinalAccepted) {
+            throw new CustomException(MemberProfileErrorCode.MEMBER_PROFILE_WRITE_FORBIDDEN);
+        }
     }
 
     private boolean isDuplicateProfileConstraint(DataIntegrityViolationException exception) {
