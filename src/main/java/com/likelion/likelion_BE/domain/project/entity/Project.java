@@ -142,6 +142,52 @@ public class Project extends BaseEntity {
         return project;
     }
 
+    // 프로젝트 정보 수정
+    public void updateProject(
+            Integer term,
+            Hackathon hackathon,
+            String title,
+            String summary,
+            String description,
+            String logoUrl,
+            LocalDate startMonth,
+            LocalDate endMonth,
+            List<ProjectSlide> newSlides,
+            List<ProjectMember> newMembers,
+            List<ProjectTechStack> newTechStacks
+    ) {
+        validateProjectPeriod(startMonth, endMonth);
+
+        this.term = term;
+        this.hackathon = hackathon;
+        this.title = title;
+        this.summary = summary;
+        this.description = description;
+        this.logoUrl = logoUrl;
+        this.startMonth = startMonth;
+        this.endMonth = endMonth;
+
+        this.slides.clear();
+        if (newSlides != null) {
+            newSlides.forEach(this::addSlide);
+        }
+
+        this.members.clear();
+        if (newMembers != null) {
+            newMembers.forEach(this::addMember);
+        }
+
+        this.techStacks.clear();
+        if (newTechStacks != null) {
+            newTechStacks.forEach(this::addTechStack);
+        }
+    }
+
+    // 소프트 삭제 (BaseEntity 메서드 사용)
+    public void delete() {
+        this.deletedAt = LocalDateTime.now();
+    }
+
     private static void validateProjectPeriod(LocalDate startMonth, LocalDate endMonth) {
         // null일 때
         if (startMonth == null || endMonth == null) {

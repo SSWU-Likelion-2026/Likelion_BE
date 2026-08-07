@@ -11,7 +11,7 @@ import jakarta.validation.constraints.Size;
 import java.time.YearMonth;
 import java.util.List;
 
-public record ProjectCreateRequest(
+public record ProjectCreateUpdateRequest(
         @NotNull(message = "기수는 필수 선택 항목입니다.")
         Integer term,
 
