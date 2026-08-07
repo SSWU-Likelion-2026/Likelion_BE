@@ -43,6 +43,7 @@ public record ProjectCreateUpdateRequest(
 
         @NotBlank(message = "로고 이미지는 필수 입력 항목입니다.")
         @org.hibernate.validator.constraints.URL(message = "올바른 로고 URL 형식이 아닙니다.")
+        @Size(max = 500, message = "로고 URL은 최대 500자까지 입력 가능합니다.")
         String logoUrl,
 
         @NotEmpty(message = "장표 이미지는 최소 1개 이상 등록해야 합니다.")
@@ -50,8 +51,9 @@ public record ProjectCreateUpdateRequest(
         List<
                 @NotBlank(message = "장표 이미지 URL은 필수입니다.")
                 @org.hibernate.validator.constraints.URL(message = "올바른 장표 URL 형식이 아닙니다.")
-                        String
-                > slideUrls,
+                @Size(max = 500, message = "로고 URL은 최대 500자까지 입력 가능합니다.")
+                String
+        > slideUrls,
 
         @NotEmpty(message = "프로젝트 팀원 정보는 필수 입력 항목입니다.")
         @Valid

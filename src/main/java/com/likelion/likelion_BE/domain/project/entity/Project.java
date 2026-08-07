@@ -41,13 +41,13 @@ public class Project extends BaseEntity {
     @Column(name = "title", nullable = false, length = 100)
     private String title;
 
-    @Column(name = "summary", nullable = false, length = 200)
+    @Column(name = "summary", nullable = false, length = 500)
     private String summary;
 
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    @Column(name = "logo_url", nullable = false, length = 200)
+    @Column(name = "logo_url", nullable = false, length = 500)
     private String logoUrl;
 
     @Column(name = "start_month", nullable = false)
