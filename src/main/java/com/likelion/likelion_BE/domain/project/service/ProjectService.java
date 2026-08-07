@@ -3,6 +3,7 @@ package com.likelion.likelion_BE.domain.project.service;
 import com.likelion.likelion_BE.common.exception.CustomException;
 import com.likelion.likelion_BE.domain.project.dto.request.ProjectCreateUpdateRequest;
 import com.likelion.likelion_BE.domain.project.dto.response.ProjectCreateUpdateResponse;
+import com.likelion.likelion_BE.domain.project.dto.response.RecentProjectResponse;
 import com.likelion.likelion_BE.domain.project.entity.Project;
 import com.likelion.likelion_BE.domain.project.entity.ProjectMember;
 import com.likelion.likelion_BE.domain.project.entity.ProjectSlide;
@@ -14,9 +15,6 @@ import com.likelion.likelion_BE.domain.project.repository.TechStackRepository;
 import com.likelion.likelion_BE.domain.user.entity.User;
 import com.likelion.likelion_BE.domain.user.enums.Role;
 import com.likelion.likelion_BE.domain.user.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
-import com.likelion.likelion_BE.domain.project.dto.response.RecentProjectResponse;
-import com.likelion.likelion_BE.domain.project.repository.ProjectRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -39,7 +37,7 @@ public class ProjectService {
     public ProjectCreateUpdateResponse createProject(String email, ProjectCreateUpdateRequest request) {
         // 1. 유저 조회 및 권한 검증
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new CustomException(ProjectErrorCode.PROJECT_FORBIDDEN_CREATE)); // 유저가 없을 경우 처리
+                .orElseThrow(() -> new CustomException(ProjectErrorCode.PROJECT_FORBIDDEN_CREATE));
 
         validateAdminRole(user.getRole(), ProjectErrorCode.PROJECT_FORBIDDEN_CREATE);
 
@@ -67,7 +65,7 @@ public class ProjectService {
 
         // 6. Project Aggregate 루트 생성 및 유저 ID 연결
         Project project = Project.createProject(
-                user.getId(), // User 엔티티의 ID 적용
+                user.getId(),
                 request.term(),
                 request.hackathon(),
                 request.title(),
@@ -151,15 +149,7 @@ public class ProjectService {
         project.delete();
     }
 
-    private void validateAdminRole(Role role, ProjectErrorCode errorCode) {
-        if (role != Role.LEADER && role != Role.MANAGER) {
-            throw new CustomException(errorCode);
-        }
-    }
-}
-
-
-    // HOME 조회
+    // HOME 최근 프로젝트 조회
     public List<RecentProjectResponse> getRecentProjects(int size) {
         PageRequest pageRequest = PageRequest.of(
                 0,
@@ -170,5 +160,11 @@ public class ProjectService {
         return projectRepository.findAllByDeletedAtIsNull(pageRequest).stream()
                 .map(RecentProjectResponse::from)
                 .toList();
+    }
+
+    private void validateAdminRole(Role role, ProjectErrorCode errorCode) {
+        if (role != Role.LEADER && role != Role.MANAGER) {
+            throw new CustomException(errorCode);
+        }
     }
 }

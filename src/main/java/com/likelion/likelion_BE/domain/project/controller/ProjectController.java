@@ -3,20 +3,28 @@ package com.likelion.likelion_BE.domain.project.controller;
 import com.likelion.likelion_BE.common.response.ApiResponse;
 import com.likelion.likelion_BE.domain.project.dto.request.ProjectCreateUpdateRequest;
 import com.likelion.likelion_BE.domain.project.dto.response.ProjectCreateUpdateResponse;
+import com.likelion.likelion_BE.domain.project.dto.response.RecentProjectResponse;
 import com.likelion.likelion_BE.domain.project.service.ProjectService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @Tag(name = "Project API", description = "프로젝트 관련 API")
 @RestController
 @RequestMapping("/api/v1/projects")
 @RequiredArgsConstructor
+@Validated // @RequestParam의 @Min, @Max 검증 활성화를 위해 필요
 public class ProjectController {
 
     private final ProjectService projectService;
@@ -51,18 +59,18 @@ public class ProjectController {
         projectService.deleteProject(projectId, userDetails.getUsername());
         return ResponseEntity.ok(ApiResponse.onSuccess(null));
     }
-}
 
     // HOME 조회
     @Operation(summary = "최근 프로젝트 조회", description = "홈 화면에 표시할 프로젝트를 최신 등록 순으로 조회합니다.")
     @GetMapping
-    public ApiResponse<List<RecentProjectResponse>> getRecentProjects(
+    public ResponseEntity<ApiResponse<List<RecentProjectResponse>>> getRecentProjects(
             @Parameter(description = "조회 개수 (기본 3개, 최대 10개)", example = "3")
             @RequestParam(defaultValue = "3")
             @Min(value = 1, message = "조회 개수는 1개 이상이어야 합니다.")
             @Max(value = 10, message = "조회 개수는 최대 10개까지 가능합니다.")
             int size
     ) {
-        return ApiResponse.onSuccess(projectService.getRecentProjects(size));
+        List<RecentProjectResponse> response = projectService.getRecentProjects(size);
+        return ResponseEntity.ok(ApiResponse.onSuccess(response));
     }
 }
