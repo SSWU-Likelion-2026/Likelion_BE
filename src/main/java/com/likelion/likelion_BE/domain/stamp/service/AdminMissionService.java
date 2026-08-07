@@ -80,7 +80,7 @@ public class AdminMissionService {
         Mission mission = missionRepository.findById(missionId)
                 .orElseThrow(() -> new CustomException(StampErrorCode.MISSION_NOT_FOUND));
 
-        // 2. 이미 유저가 스탬프를 획득한 미션인지 검증 (있으면 MISSION-4002)
+        // 이미 유저가 스탬프를 획득한 미션인지 검증
         if (userStampRepository.existsByMissionId(missionId)) {
             throw new CustomException(StampErrorCode.STAMP_MISSION_ALREADY_STAMPED);
         }
