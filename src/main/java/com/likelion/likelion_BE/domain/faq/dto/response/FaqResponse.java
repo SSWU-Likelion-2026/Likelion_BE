@@ -14,8 +14,8 @@ public record FaqResponse(
 ) {
     public static FaqResponse from(Faq faq) {
         return new FaqResponse(
-                faq.getId(),
                 faq.getRecruitment().getId(),
+                faq.getId(),
                 faq.getRecruitmentPart() != null ? faq.getRecruitmentPart().getId() : null,
                 faq.getQuestion(),
                 faq.getAnswer(),
