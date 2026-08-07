@@ -1,6 +1,8 @@
 package com.likelion.likelion_BE.domain.project.dto.request;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.datatype.jsr310.deser.YearMonthDeserializer;
 import com.likelion.likelion_BE.domain.project.enums.Hackathon;
 import com.likelion.likelion_BE.domain.project.enums.Part;
 import jakarta.validation.Valid;
@@ -31,18 +33,25 @@ public record ProjectCreateUpdateRequest(
 
         @NotNull(message = "시작일은 필수 입력 항목입니다.")
         @JsonFormat(pattern = "yyyy-MM")
+        @JsonDeserialize(using = YearMonthDeserializer.class)
         YearMonth startMonth,
 
         @NotNull(message = "종료일은 필수 입력 항목입니다.")
         @JsonFormat(pattern = "yyyy-MM")
+        @JsonDeserialize(using = YearMonthDeserializer.class)
         YearMonth endMonth,
 
-        @NotBlank(message = "로고 URL은 필수 입력 항목(1개)입니다.")
+        @NotBlank(message = "로고 이미지는 필수 입력 항목입니다.")
+        @org.hibernate.validator.constraints.URL(message = "올바른 로고 URL 형식이 아닙니다.")
         String logoUrl,
 
         @NotEmpty(message = "장표 이미지는 최소 1개 이상 등록해야 합니다.")
-        @Size(max = 10, message = "장표 이미지는 최대 10개까지 업로드 가능합니다.")
-        List<@NotBlank(message = "장표 이미지 URL은 필수입니다.") String> slideUrls,
+        @Size(max = 10, message = "장표 이미지는 최대 10개까지 추가 가능합니다.")
+        List<
+                @NotBlank(message = "장표 이미지 URL은 필수입니다.")
+                @org.hibernate.validator.constraints.URL(message = "올바른 장표 URL 형식이 아닙니다.")
+                        String
+                > slideUrls,
 
         @NotEmpty(message = "프로젝트 팀원 정보는 필수 입력 항목입니다.")
         @Valid
