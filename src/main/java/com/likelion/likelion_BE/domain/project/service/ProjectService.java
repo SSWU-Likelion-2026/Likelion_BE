@@ -3,6 +3,8 @@ package com.likelion.likelion_BE.domain.project.service;
 import com.likelion.likelion_BE.common.exception.CustomException;
 import com.likelion.likelion_BE.domain.project.dto.request.ProjectCreateUpdateRequest;
 import com.likelion.likelion_BE.domain.project.dto.response.ProjectCreateUpdateResponse;
+import com.likelion.likelion_BE.domain.project.dto.response.ProjectDetailResponse;
+import com.likelion.likelion_BE.domain.project.dto.response.ProjectListResponse;
 import com.likelion.likelion_BE.domain.project.dto.response.RecentProjectResponse;
 import com.likelion.likelion_BE.domain.project.entity.Project;
 import com.likelion.likelion_BE.domain.project.entity.ProjectMember;
@@ -16,7 +18,9 @@ import com.likelion.likelion_BE.domain.user.entity.User;
 import com.likelion.likelion_BE.domain.user.enums.Role;
 import com.likelion.likelion_BE.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -166,5 +170,20 @@ public class ProjectService {
         if (role != Role.LEADER && role != Role.MANAGER) {
             throw new CustomException(errorCode);
         }
+    }
+
+    // 프로젝트 상세 조회
+    @Transactional(readOnly = true)
+    public ProjectDetailResponse getProjectDetail(Long projectId) {
+        Project project = projectRepository.findDetailByIdAndDeletedAtIsNull(projectId)
+                .orElseThrow(() -> new CustomException(ProjectErrorCode.PROJECT_NOT_FOUND));
+
+        return ProjectDetailResponse.from(project);
+    }
+
+    // 프로젝트 목록 조회
+    public Page<ProjectListResponse> getProjects(Integer term, Pageable pageable) {
+        Page<Project> projects = projectRepository.findAllByTerm(term, pageable);
+        return projects.map(ProjectListResponse::from);
     }
 }
