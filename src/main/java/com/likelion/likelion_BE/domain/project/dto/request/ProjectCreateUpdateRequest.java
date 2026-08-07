@@ -51,7 +51,7 @@ public record ProjectCreateUpdateRequest(
         List<
                 @NotBlank(message = "장표 이미지 URL은 필수입니다.")
                 @org.hibernate.validator.constraints.URL(message = "올바른 장표 URL 형식이 아닙니다.")
-                @Size(max = 500, message = "로고 URL은 최대 500자까지 입력 가능합니다.")
+                @Size(max = 500, message = "장표 이미지 URL은 최대 500자까지 입력 가능합니다.")
                 String
         > slideUrls,
 
@@ -62,7 +62,10 @@ public record ProjectCreateUpdateRequest(
                 ProjectMemberRequest> members,
 
         @NotEmpty(message = "기술 스택은 최소 1개 이상 선택해야 합니다.")
-        List<Long> techStackIds
+        List<
+                @NotNull(message = "기술 스택 ID는 null일 수 없습니다.")
+                        Long
+                > techStackIds
 ) {
     public record ProjectMemberRequest(
             @NotBlank(message = "팀원 이름은 필수 입력 항목입니다.")
