@@ -17,10 +17,8 @@ public enum ProjectErrorCode implements BaseCode {
     INVALID_PROJECT_PERIOD(HttpStatus.BAD_REQUEST, "PROJECT400_5", "종료일은 시작일보다 이전일 수 없습니다."),
 
 
-    // 403 FORBIDDEN
-    PROJECT_FORBIDDEN_CREATE(HttpStatus.FORBIDDEN, "PROJECT403_1", "프로젝트 등록 권한이 없습니다."),
-    PROJECT_FORBIDDEN_UPDATE(HttpStatus.FORBIDDEN, "PROJECT403_2", "프로젝트 수정 권한이 없습니다."),
-    PROJECT_FORBIDDEN_DELETE(HttpStatus.FORBIDDEN, "PROJECT403_3", "프로젝트 삭제 권한이 없습니다."),
+    // 401 Unauthorized / 403 FORBIDDEN
+    PROJECT_FORBIDDEN_CREATE(HttpStatus.UNAUTHORIZED, "PROJECT4001", "운영진만 작성 가능합니다."),
 
     // 404 NOT_FOUND
     PROJECT_NOT_FOUND(HttpStatus.NOT_FOUND, "PROJECT404_1", "해당 프로젝트를 찾을 수 없습니다."),
