@@ -16,6 +16,7 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -281,27 +282,59 @@ public class S3Service {
             return null;
         }
 
-        String prefix = "https://" + cf + "/";
-        if (!url.startsWith(prefix)) {
+        URI uri = parseStrict(url);
+        if (uri == null) {
             return null;
         }
 
-        return url.substring(prefix.length());
+        if (!cf.equalsIgnoreCase(uri.getHost())) {
+            return null;
+        }
+
+        return extractPath(uri);
     }
 
     private String extractKeyFromS3Url(String url) {
+        URI uri = parseStrict(url);
+        if (uri == null) {
+            return null;
+        }
+
         String bucket = props.getS3().getBucket();
-        String expectedHostPrefix = "https://" + bucket + ".s3.";
+        String region = props.getS3().getRegion();
+        String expectedHost = bucket + ".s3." + region + ".amazonaws.com";
 
-        if (!url.startsWith(expectedHostPrefix)) {
+        if (!expectedHost.equalsIgnoreCase(uri.getHost())) {
+            return null; // 호스트가 정확히 일치하지 않으면 우리 버킷이 아님
+        }
+
+        return extractPath(uri);
+    }
+
+    private URI parseStrict(String url) {
+        URI uri;
+        try {
+            uri = new URI(url);
+        } catch (URISyntaxException e) {
             return null;
         }
 
-        int pathStart = url.indexOf('/', "https://".length());
-        if (pathStart < 0 || pathStart + 1 >= url.length()) {
+        if (!"https".equalsIgnoreCase(uri.getScheme())) {
             return null;
         }
 
-        return url.substring(pathStart + 1);
+        if (uri.getRawQuery() != null || uri.getRawFragment() != null) {
+            return null; // 우리가 생성한 URL엔 query/fragment가 없음 → 조작 의심
+        }
+
+        return uri;
+    }
+
+    private String extractPath(URI uri) {
+        String path = uri.getRawPath(); // "/{key}"
+        if (path == null || path.length() < 2) {
+            return null;
+        }
+        return path.substring(1); // 맨 앞 "/" 제거
     }
 }
