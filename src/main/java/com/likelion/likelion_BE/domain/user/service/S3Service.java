@@ -4,23 +4,31 @@ import com.likelion.likelion_BE.config.AppProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
+import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
+import javax.imageio.stream.ImageInputStream;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class S3Service {
+
+    private static final long MAX_DECODED_PIXELS = 20_000_000L; // 약 20MP, 예: 5000x4000. 정책값 확인 필요
 
     private final S3Client s3Client;
     private final AppProperties props;
@@ -45,19 +53,90 @@ public class S3Service {
             "image/gif"
     );
 
-    public String uploadIcon(byte[] bytes) {
-        String key = buildKey(".png");
+    public String upload(MultipartFile file) {
+        String declaredContentType = file.getContentType();
+        if (declaredContentType == null
+                || !ALLOWED_CONTENT_TYPES.contains(declaredContentType.toLowerCase(Locale.ROOT))) {
+            throw new IllegalArgumentException("허용되지 않은 이미지 형식입니다.");
+        }
+
+        byte[] bytes;
+        try {
+            bytes = file.getBytes();
+        } catch (IOException e) {
+            throw new IllegalStateException("이미지 업로드 중 오류가 발생했습니다.", e);
+        }
+
+        // 실제 바이트를 열어서 "진짜로 뭔지" 확인. 이 결과만 신뢰함.
+        String detectedContentType = detectImageContentType(bytes)
+                .orElseThrow(() -> new IllegalArgumentException("허용되지 않은 이미지 형식입니다."));
+
+        // 저장할 때는 클라이언트가 적은 값(declaredContentType)이 아니라
+        // 우리가 실제로 확인한 값(detectedContentType)을 사용
+        String key = buildKey(resolveExtension(detectedContentType));
 
         s3Client.putObject(
                 PutObjectRequest.builder()
                         .bucket(props.getS3().getBucket())
                         .key(key)
-                        .contentType("image/png")
+                        .contentType(detectedContentType)
                         .build(),
                 RequestBody.fromBytes(bytes)
         );
 
         return toPublicUrl(key);
+    }
+
+    private Optional<String> detectImageContentType(byte[] bytes) {
+        try (ImageInputStream iis = ImageIO.createImageInputStream(new ByteArrayInputStream(bytes))) {
+            if (iis == null) {
+                return Optional.empty();
+            }
+
+            Iterator<ImageReader> readers = ImageIO.getImageReaders(iis);
+            if (!readers.hasNext()) {
+                return Optional.empty();
+            }
+
+            ImageReader reader = readers.next();
+            try {
+                reader.setInput(iis, true, true);
+
+                int width = reader.getWidth(0);
+                int height = reader.getHeight(0);
+                long pixelCount = (long) width * height;
+                if (pixelCount > MAX_DECODED_PIXELS) {
+                    log.warn("이미지 픽셀 수 초과. width={}, height={}, pixels={}", width, height, pixelCount);
+                    return Optional.empty();
+                }
+
+                // reader가 실제로 감지한 포맷 이름 ("png", "jpeg", "gif", "webp" 등)
+                String formatName = reader.getFormatName().toLowerCase(Locale.ROOT);
+                String canonicalContentType = toCanonicalContentType(formatName);
+
+                if (canonicalContentType == null || !ALLOWED_CONTENT_TYPES.contains(canonicalContentType)) {
+                    log.warn("허용되지 않은 이미지 포맷 감지. detectedFormat={}", formatName);
+                    return Optional.empty();
+                }
+
+                return Optional.of(canonicalContentType);
+            } finally {
+                reader.dispose();
+            }
+        } catch (IOException e) {
+            return Optional.empty();
+        }
+    }
+
+    // ImageReader가 알려주는 포맷 이름을, 우리가 저장에 쓰는 Content-Type 문자열로 바꿔줌
+    private String toCanonicalContentType(String formatName) {
+        return switch (formatName) {
+            case "png" -> "image/png";
+            case "jpeg", "jpg" -> "image/jpeg";
+            case "gif" -> "image/gif";
+            case "webp" -> "image/webp";
+            default -> null;
+        };
     }
 
     public String uploadFromUrl(String imageUrl) {
@@ -162,5 +241,105 @@ public class S3Service {
         return s3Client.utilities()
                 .getUrl(b -> b.bucket(props.getS3().getBucket()).key(key))
                 .toString();
+    }
+
+    public void deleteIfOwned(String url) {
+        if (url == null || url.isBlank()) {
+            return;
+        }
+
+        String key = extractOwnedKey(url);
+        if (key == null) {
+            log.warn("우리 버킷 소유가 아니거나 형식이 다른 URL이라 삭제하지 않음. url={}", url);
+            return;
+        }
+
+        try {
+            s3Client.deleteObject(b -> b.bucket(props.getS3().getBucket()).key(key));
+        } catch (Exception e) {
+            log.warn("이전 프로필 이미지 삭제 실패 (무시 가능). key={}, error={}", key, e.getMessage());
+        }
+    }
+
+    private String extractOwnedKey(String url) {
+        String key = extractKeyFromCloudFront(url);
+        if (key == null) {
+            key = extractKeyFromS3Url(url);
+        }
+        if (key == null) {
+            return null; // 우리 소유 URL 형식이 아님 (구글 URL 등)
+        }
+
+        String rootPrefix = props.getS3().getRootPrefix();
+        if (rootPrefix != null && !rootPrefix.isBlank()) {
+            String normalizedPrefix = rootPrefix.endsWith("/") ? rootPrefix : rootPrefix + "/";
+            if (!key.startsWith(normalizedPrefix)) {
+                return null; // rootPrefix 하위가 아니면 안전하게 스킵
+            }
+        }
+
+        return key;
+    }
+
+    private String extractKeyFromCloudFront(String url) {
+        String cf = props.getS3().getCloudfrontDomain();
+        if (cf == null || cf.isBlank()) {
+            return null;
+        }
+
+        URI uri = parseStrict(url);
+        if (uri == null) {
+            return null;
+        }
+
+        if (!cf.equalsIgnoreCase(uri.getHost())) {
+            return null;
+        }
+
+        return extractPath(uri);
+    }
+
+    private String extractKeyFromS3Url(String url) {
+        URI uri = parseStrict(url);
+        if (uri == null) {
+            return null;
+        }
+
+        String bucket = props.getS3().getBucket();
+        String region = props.getS3().getRegion();
+        String expectedHost = bucket + ".s3." + region + ".amazonaws.com";
+
+        if (!expectedHost.equalsIgnoreCase(uri.getHost())) {
+            return null; // 호스트가 정확히 일치하지 않으면 우리 버킷이 아님
+        }
+
+        return extractPath(uri);
+    }
+
+    private URI parseStrict(String url) {
+        URI uri;
+        try {
+            uri = new URI(url);
+        } catch (URISyntaxException e) {
+            return null;
+        }
+
+        if (!"https".equalsIgnoreCase(uri.getScheme())) {
+            return null;
+        }
+
+        if (uri.getRawQuery() != null || uri.getRawFragment() != null) {
+            return null; // 우리가 생성한 URL엔 query/fragment가 없음 → 조작 의심
+        }
+
+        return uri;
+    }
+
+    private String extractPath(URI uri) {
+        String path = uri.getRawPath(); // "/{key}"
+        if (path == null || path.length() < 2) {
+            return null;
+        }
+        return path.substring(1); // 맨 앞 "/" 제거
     }
 }
