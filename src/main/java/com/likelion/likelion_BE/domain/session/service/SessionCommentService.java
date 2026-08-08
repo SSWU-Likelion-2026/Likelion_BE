@@ -57,12 +57,9 @@ public class SessionCommentService {
     // 3. 세션 후기 수정
     @Transactional
     public SessionCommentResponse updateComment(Long commentId, String email, SessionCommentCreateUpdateRequest request) {
-        SessionComment comment = commentRepository.findById(commentId)
+        // 삭제되지 않은 댓글만 조회 (이미 삭제된 경우 알아서 NOT_FOUND 예외 발생)
+        SessionComment comment = commentRepository.findByIdAndDeletedAtIsNull(commentId)
                 .orElseThrow(() -> new CustomException(SessionErrorCode.SESSION_COMMENT_NOT_FOUND));
-
-        if (comment.getDeletedAt() != null) {
-            throw new CustomException(SessionErrorCode.SESSION_COMMENT_NOT_FOUND);
-        }
 
         // 본인 검증
         if (!comment.getUser().getEmail().equals(email)) {
@@ -76,14 +73,11 @@ public class SessionCommentService {
     // 4. 세션 후기 삭제 (Soft Delete)
     @Transactional
     public void deleteComment(Long commentId, String email) {
-        SessionComment comment = commentRepository.findById(commentId)
+        // 삭제되지 않은 댓글만 조회
+        SessionComment comment = commentRepository.findByIdAndDeletedAtIsNull(commentId)
                 .orElseThrow(() -> new CustomException(SessionErrorCode.SESSION_COMMENT_NOT_FOUND));
 
-        if (comment.getDeletedAt() != null) {
-            throw new CustomException(SessionErrorCode.SESSION_COMMENT_NOT_FOUND);
-        }
-
-        // 본인 검증 (필요 시 LEADER, MANAGER 권한자도 삭제 가능하게 확장 가능)
+        // 본인 검증
         if (!comment.getUser().getEmail().equals(email)) {
             throw new CustomException(SessionErrorCode.SESSION_COMMENT_FORBIDDEN);
         }
