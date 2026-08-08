@@ -109,11 +109,15 @@ public class MypageApplicationService {
             throw new CustomException(MyPageErrorCode.NOT_OWN_APPLICATION);
         }
 
-        if (application.getSubmitStatus() == SubmitStatus.SUBMITTED) {
+        int deletedCount = applicationRepository.deleteByIdAndUserIdAndSubmitStatus(
+                applicationId,
+                user.getId(),
+                SubmitStatus.DRAFT
+        );
+
+        if (deletedCount == 0) {
             throw new CustomException(MyPageErrorCode.APPLICATION_ALREADY_SUBMITTED);
         }
-
-        applicationRepository.delete(application);
 
         return ApplicationDeleteResponse.of(applicationId);
     }
@@ -121,7 +125,7 @@ public class MypageApplicationService {
     private ApplicationDetailResponse.AnswerItem toAnswerItem(ApplicationAnswer answer) {
         return new ApplicationDetailResponse.AnswerItem(
                 answer.getQuestion().getId(),
-                answer.getQuestion().getContent(), // 필드명 추정, 확인 필요
+                answer.getQuestion().getContent(),
                 answer.getContent()
         );
     }
