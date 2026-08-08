@@ -1,11 +1,13 @@
 package com.likelion.likelion_BE.domain.mypage.dto.request;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 
 public record ProfileUpdateRequest(
 
         @NotBlank
+        @Schema(description = "이름", example = "홍길동")
         String name,
 
         @NotBlank

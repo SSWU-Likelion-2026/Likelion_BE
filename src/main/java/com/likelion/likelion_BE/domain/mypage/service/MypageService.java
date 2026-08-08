@@ -59,12 +59,40 @@ public class MypageService {
             throw new CustomException(MyPageErrorCode.INVALID_IMAGE_FILE);
         }
 
+        String previousUrl = user.getProfileImageUrl();
+        String uploadedUrl;
+
         try {
-            String uploadedUrl = s3Service.upload(image);
-            user.updateProfileImageUrl(uploadedUrl);
-            return ProfileImageUpdateResponse.of(uploadedUrl);
+            uploadedUrl = s3Service.upload(image);
         } catch (IllegalArgumentException e) {
             throw new CustomException(MyPageErrorCode.INVALID_IMAGE_FILE);
         }
+
+        try {
+            user.updateProfileImageUrl(uploadedUrl);
+            // 여기서 메서드가 끝나면 @Transactional이 커밋을 시도함
+        } catch (RuntimeException e) {
+            // DB 갱신 자체가 예외를 던지는 경우 (드물지만) 방금 올린 새 파일 삭제
+            s3Service.deleteIfOwned(uploadedUrl);
+            throw e;
+        }
+
+        registerOldImageCleanup(previousUrl);
+
+        return ProfileImageUpdateResponse.of(uploadedUrl);
+    }
+
+    private void registerOldImageCleanup(String previousUrl) {
+        if (previousUrl == null) {
+            return;
+        }
+        org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                new org.springframework.transaction.support.TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        s3Service.deleteIfOwned(previousUrl);
+                    }
+                }
+        );
     }
 }

@@ -9,6 +9,9 @@ import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -67,22 +70,39 @@ public class S3Service {
             throw new IllegalArgumentException("허용되지 않은 이미지 형식입니다.");
         }
 
-        String key = buildKey(resolveExtension(contentType));
-
+        byte[] bytes;
         try {
-            s3Client.putObject(
-                    PutObjectRequest.builder()
-                            .bucket(props.getS3().getBucket())
-                            .key(key)
-                            .contentType(contentType)
-                            .build(),
-                    RequestBody.fromBytes(file.getBytes())
-            );
+            bytes = file.getBytes();
         } catch (IOException e) {
             throw new IllegalStateException("이미지 업로드 중 오류가 발생했습니다.", e);
         }
 
+        // 실제 바이트가 이미지로 디코딩되는지 검증 (Content-Type 헤더 조작 방지)
+        if (!isActuallyImage(bytes)) {
+            throw new IllegalArgumentException("허용되지 않은 이미지 형식입니다.");
+        }
+
+        String key = buildKey(resolveExtension(contentType));
+
+        s3Client.putObject(
+                PutObjectRequest.builder()
+                        .bucket(props.getS3().getBucket())
+                        .key(key)
+                        .contentType(contentType)
+                        .build(),
+                RequestBody.fromBytes(bytes)
+        );
+
         return toPublicUrl(key);
+    }
+
+    private boolean isActuallyImage(byte[] bytes) {
+        try {
+            BufferedImage image = ImageIO.read(new ByteArrayInputStream(bytes));
+            return image != null;
+        } catch (IOException e) {
+            return false;
+        }
     }
 
     public String uploadFromUrl(String imageUrl) {
@@ -187,5 +207,52 @@ public class S3Service {
         return s3Client.utilities()
                 .getUrl(b -> b.bucket(props.getS3().getBucket()).key(key))
                 .toString();
+    }
+
+    public void deleteIfOwned(String url) {
+        if (url == null || url.isBlank()) {
+            return;
+        }
+
+        String key = extractOwnedKey(url);
+        if (key == null) {
+            log.warn("우리 버킷 소유가 아니거나 형식이 다른 URL이라 삭제하지 않음. url={}", url);
+            return;
+        }
+
+        try {
+            s3Client.deleteObject(b -> b.bucket(props.getS3().getBucket()).key(key));
+        } catch (Exception e) {
+            log.warn("이전 프로필 이미지 삭제 실패 (무시 가능). key={}, error={}", key, e.getMessage());
+        }
+    }
+
+    // 순수 S3 URL(https://{bucket}.s3.{region}.amazonaws.com/{key}) 형식이고
+// 버킷이 우리 버킷과 일치하며 rootPrefix 하위 키일 때만 key를 반환. 그 외(구글 URL 등)는 null.
+    private String extractOwnedKey(String url) {
+        String bucket = props.getS3().getBucket();
+        String expectedHostPrefix = "https://" + bucket + ".s3.";
+
+        if (!url.startsWith(expectedHostPrefix)) {
+            return null; // 우리 버킷 URL 형식이 아니면 우리 소유가 아님 (구글 URL 등)
+        }
+
+        // https://{bucket}.s3.{region}.amazonaws.com/{key} 에서 {key} 부분만 추출
+        int pathStart = url.indexOf('/', "https://".length());
+        if (pathStart < 0 || pathStart + 1 >= url.length()) {
+            return null;
+        }
+
+        String key = url.substring(pathStart + 1);
+
+        String rootPrefix = props.getS3().getRootPrefix();
+        if (rootPrefix != null && !rootPrefix.isBlank()) {
+            String normalizedPrefix = rootPrefix.endsWith("/") ? rootPrefix : rootPrefix + "/";
+            if (!key.startsWith(normalizedPrefix)) {
+                return null; // rootPrefix 하위가 아니면 안전하게 스킵
+            }
+        }
+
+        return key;
     }
 }
