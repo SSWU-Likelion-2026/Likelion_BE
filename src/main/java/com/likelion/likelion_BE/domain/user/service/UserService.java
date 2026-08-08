@@ -4,17 +4,16 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.likelion.likelion_BE.common.exception.CustomException;
 import com.likelion.likelion_BE.config.jwt.JwtTokenProvider;
-import com.likelion.likelion_BE.domain.user.dto.request.GoogleLoginRequest;
-import com.likelion.likelion_BE.domain.user.dto.request.LoginRequest;
-import com.likelion.likelion_BE.domain.user.dto.request.SignupRequest;
-import com.likelion.likelion_BE.domain.user.dto.request.TokenRefreshRequest;
+import com.likelion.likelion_BE.domain.user.dto.request.*;
 import com.likelion.likelion_BE.domain.user.dto.response.GoogleLoginResponse;
+import com.likelion.likelion_BE.domain.user.dto.response.RoleChangeResponse;
 import com.likelion.likelion_BE.domain.user.dto.response.TokenRefreshResponse;
 import com.likelion.likelion_BE.domain.user.dto.response.UserResponse;
 import com.likelion.likelion_BE.domain.user.entity.EmailVerification;
 import com.likelion.likelion_BE.domain.user.entity.RefreshToken;
 import com.likelion.likelion_BE.domain.user.entity.User;
 import com.likelion.likelion_BE.domain.user.enums.Provider;
+import com.likelion.likelion_BE.domain.user.enums.Role;
 import com.likelion.likelion_BE.domain.user.exception.AuthErrorCode;
 import com.likelion.likelion_BE.domain.user.repository.EmailVerificationRepository;
 import com.likelion.likelion_BE.domain.user.repository.RefreshTokenRepository;
@@ -276,6 +275,32 @@ public class UserService {
             return HexFormat.of().formatHex(hash);
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-256 알고리즘을 찾을 수 없습니다.", e);
+        }
+    }
+
+    @Transactional
+    public RoleChangeResponse changeUserRole(String adminEmail, Long targetUserId, RoleChangeRequest request) {
+        User admin = userRepository.findByEmail(adminEmail)
+                .orElseThrow(() -> new CustomException(AuthErrorCode.UNAUTHORIZED));
+
+        if (admin.getRole() != Role.LEADER) {
+            throw new CustomException(AuthErrorCode.ROLE_CHANGE_FORBIDDEN);
+        }
+
+        User target = userRepository.findById(targetUserId)
+                .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
+
+        Role newRole = parseRole(request.role());
+        target.changeRole(newRole);
+
+        return RoleChangeResponse.of(target);
+    }
+
+    private Role parseRole(String role) {
+        try {
+            return Role.valueOf(role);
+        } catch (IllegalArgumentException | NullPointerException e) {
+            throw new CustomException(AuthErrorCode.INVALID_ROLE_VALUE);
         }
     }
 }

@@ -12,10 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "User API", description = "유저 - 회원가입/로그인")
 @RestController
@@ -81,5 +78,23 @@ public class UserController {
     @PostMapping("/login/google")
     public ResponseEntity<ApiResponse<GoogleLoginResponse>> googleLogin(@Valid @RequestBody GoogleLoginRequest request) {
         return ResponseEntity.ok(ApiResponse.onSuccess(userService.googleLogin(request)));
+    }
+
+    @Operation(
+            summary = "역할 변경",
+            description = "리더가 특정 사용자의 역할(ROLE_ADMIN/ROLE_MEMBER)을 변경합니다.")
+    @PatchMapping("/{userId}/role")
+    public ResponseEntity<ApiResponse<RoleChangeResponse>> changeRole(
+            @PathVariable Long userId,
+            @Valid @RequestBody RoleChangeRequest request,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        RoleChangeResponse response = userService.changeUserRole(
+                userDetails.getUsername(),
+                userId,
+                request
+        );
+
+        return ResponseEntity.ok(ApiResponse.onSuccess(response));
     }
 }
