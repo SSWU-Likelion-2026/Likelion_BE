@@ -4,6 +4,8 @@ import com.likelion.likelion_BE.domain.project.dto.response.RecentProjectRespons
 import com.likelion.likelion_BE.domain.project.entity.Project;
 import com.likelion.likelion_BE.domain.project.enums.Hackathon;
 import com.likelion.likelion_BE.domain.project.repository.ProjectRepository;
+import com.likelion.likelion_BE.domain.project.repository.TechStackRepository;
+import com.likelion.likelion_BE.domain.user.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -27,6 +29,12 @@ class ProjectServiceTest {
     @Mock
     private ProjectRepository projectRepository;
 
+    @Mock
+    private TechStackRepository techStackRepository;
+
+    @Mock
+    private UserRepository userRepository;
+
     @Test
     void 최근_프로젝트를_요청한_개수만큼_최신순으로_조회한다() {
         Project project = Project.createProject(
@@ -45,7 +53,11 @@ class ProjectServiceTest {
         );
         when(projectRepository.findAllByDeletedAtIsNull(any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(project)));
-        ProjectService projectService = new ProjectService(projectRepository);
+        ProjectService projectService = new ProjectService(
+                projectRepository,
+                techStackRepository,
+                userRepository
+        );
 
         List<RecentProjectResponse> responses = projectService.getRecentProjects(3);
 
