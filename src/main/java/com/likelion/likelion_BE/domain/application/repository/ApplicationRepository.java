@@ -2,6 +2,7 @@ package com.likelion.likelion_BE.domain.application.repository;
 
 import com.likelion.likelion_BE.domain.application.entity.Application;
 import com.likelion.likelion_BE.domain.application.enums.PassStatus;
+import com.likelion.likelion_BE.domain.application.enums.SubmitStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -9,6 +10,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface ApplicationRepository extends JpaRepository<Application, Long> {
@@ -45,4 +47,8 @@ public interface ApplicationRepository extends JpaRepository<Application, Long> 
     // 관리자 지원서 상세 조회 (답변, 질문, 파트, 모집공고 한 번에 Fetch)
     @EntityGraph(attributePaths = {"answers", "answers.question", "recruitmentPart", "recruitment"})
     Optional<Application> findDetailById(Long id);
+
+    Optional<Application> findByUserIdAndSubmitStatus(Long userId, SubmitStatus submitStatus);
+
+    Optional<Application> findByIdAndUserId(Long id, Long userId);
 }
