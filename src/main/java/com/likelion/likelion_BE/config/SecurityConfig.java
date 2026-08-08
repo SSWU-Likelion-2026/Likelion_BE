@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -44,10 +45,13 @@ public class SecurityConfig {
                                 "/api/auth/reissue",
                                 "/api/auth/email/verification-code",
                                 "/api/auth/email/verify",
+                                "/api/v1/recruitments/current",
+                                "/api/v1/projects",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**"
                         ).permitAll()
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/projects/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(

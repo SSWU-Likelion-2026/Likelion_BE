@@ -13,6 +13,12 @@ import java.util.Optional;
 
 public interface ApplicationRepository extends JpaRepository<Application, Long> {
 
+    boolean existsByUserIdAndRecruitment_TermAndPassStatus(
+            Long userId,
+            Integer term,
+            PassStatus passStatus
+    );
+
     // 유저 Id와 모집 공고 Id로 기존 지원서 조회 (임시저장/제출 확인용)
     @EntityGraph(attributePaths = {"answers", "answers.question", "recruitmentPart"})
     Optional<Application> findByUserIdAndRecruitmentId(Long userId, Long recruitmentId);

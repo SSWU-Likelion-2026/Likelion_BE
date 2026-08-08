@@ -52,3 +52,7 @@ app:
     root-prefix: profile-images
     cloudfront-domain: ""
     presign-seconds: 3600
+
+logging:
+  level:
+    org.springframework.web: DEBUG

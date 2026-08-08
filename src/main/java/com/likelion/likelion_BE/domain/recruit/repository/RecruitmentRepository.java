@@ -4,6 +4,7 @@ import com.likelion.likelion_BE.domain.recruit.entity.Recruitment;
 import com.likelion.likelion_BE.domain.recruit.enums.RecruitmentStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 public interface RecruitmentRepository extends JpaRepository<Recruitment, Long> {
@@ -19,4 +20,11 @@ public interface RecruitmentRepository extends JpaRepository<Recruitment, Long> 
 
     // 가장 최근에 생성된 모집 공고 1건
     Optional<Recruitment> findFirstByOrderByCreatedAtDesc();
+
+    // 현재 지원 기간에 해당하는 가장 최신 기수의 모집 공고 1건
+    Optional<Recruitment> findFirstByStatusAndDocStartAtLessThanEqualAndDocEndAtGreaterThanEqualOrderByTermDesc(
+            RecruitmentStatus status,
+            LocalDateTime startAt,
+            LocalDateTime endAt
+    );
 }
