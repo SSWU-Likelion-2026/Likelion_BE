@@ -10,6 +10,8 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
+import javax.imageio.stream.ImageInputStream;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -18,6 +20,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.Iterator;
 import java.util.Set;
 import java.util.UUID;
 
@@ -25,6 +28,8 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class S3Service {
+
+    private static final long MAX_DECODED_PIXELS = 20_000_000L; // 약 20MP, 예: 5000x4000. 정책값 확인 필요
 
     private final S3Client s3Client;
     private final AppProperties props;
@@ -97,9 +102,32 @@ public class S3Service {
     }
 
     private boolean isActuallyImage(byte[] bytes) {
-        try {
-            BufferedImage image = ImageIO.read(new ByteArrayInputStream(bytes));
-            return image != null;
+        try (ImageInputStream iis = ImageIO.createImageInputStream(new ByteArrayInputStream(bytes))) {
+            if (iis == null) {
+                return false;
+            }
+
+            Iterator<ImageReader> readers = ImageIO.getImageReaders(iis);
+            if (!readers.hasNext()) {
+                return false; // 이미지 포맷 자체를 인식 못함
+            }
+
+            ImageReader reader = readers.next();
+            try {
+                reader.setInput(iis, true, true); // 헤더만 읽음, 픽셀 디코딩 안 함
+                int width = reader.getWidth(0);
+                int height = reader.getHeight(0);
+
+                long pixelCount = (long) width * height;
+                if (pixelCount > MAX_DECODED_PIXELS) {
+                    log.warn("이미지 픽셀 수 초과. width={}, height={}, pixels={}", width, height, pixelCount);
+                    return false;
+                }
+
+                return true;
+            } finally {
+                reader.dispose();
+            }
         } catch (IOException e) {
             return false;
         }
@@ -227,23 +255,14 @@ public class S3Service {
         }
     }
 
-    // 순수 S3 URL(https://{bucket}.s3.{region}.amazonaws.com/{key}) 형식이고
-// 버킷이 우리 버킷과 일치하며 rootPrefix 하위 키일 때만 key를 반환. 그 외(구글 URL 등)는 null.
     private String extractOwnedKey(String url) {
-        String bucket = props.getS3().getBucket();
-        String expectedHostPrefix = "https://" + bucket + ".s3.";
-
-        if (!url.startsWith(expectedHostPrefix)) {
-            return null; // 우리 버킷 URL 형식이 아니면 우리 소유가 아님 (구글 URL 등)
+        String key = extractKeyFromCloudFront(url);
+        if (key == null) {
+            key = extractKeyFromS3Url(url);
         }
-
-        // https://{bucket}.s3.{region}.amazonaws.com/{key} 에서 {key} 부분만 추출
-        int pathStart = url.indexOf('/', "https://".length());
-        if (pathStart < 0 || pathStart + 1 >= url.length()) {
-            return null;
+        if (key == null) {
+            return null; // 우리 소유 URL 형식이 아님 (구글 URL 등)
         }
-
-        String key = url.substring(pathStart + 1);
 
         String rootPrefix = props.getS3().getRootPrefix();
         if (rootPrefix != null && !rootPrefix.isBlank()) {
@@ -254,5 +273,35 @@ public class S3Service {
         }
 
         return key;
+    }
+
+    private String extractKeyFromCloudFront(String url) {
+        String cf = props.getS3().getCloudfrontDomain();
+        if (cf == null || cf.isBlank()) {
+            return null;
+        }
+
+        String prefix = "https://" + cf + "/";
+        if (!url.startsWith(prefix)) {
+            return null;
+        }
+
+        return url.substring(prefix.length());
+    }
+
+    private String extractKeyFromS3Url(String url) {
+        String bucket = props.getS3().getBucket();
+        String expectedHostPrefix = "https://" + bucket + ".s3.";
+
+        if (!url.startsWith(expectedHostPrefix)) {
+            return null;
+        }
+
+        int pathStart = url.indexOf('/', "https://".length());
+        if (pathStart < 0 || pathStart + 1 >= url.length()) {
+            return null;
+        }
+
+        return url.substring(pathStart + 1);
     }
 }
