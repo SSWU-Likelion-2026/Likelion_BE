@@ -28,6 +28,11 @@ public class SessionCommentService {
 
     // 1. 세션 후기 목록 조회
     public List<SessionCommentResponse> getComments(Long sessionId, String currentUserEmail) {
+        // 세션 존재 여부 검증 추가
+        if (!sessionRepository.existsById(sessionId)) {
+            throw new CustomException(SessionErrorCode.SESSION_NOT_FOUND);
+        }
+
         List<SessionComment> comments = commentRepository.findActiveCommentsBySessionId(sessionId);
         return comments.stream()
                 .map(comment -> SessionCommentResponse.of(comment, currentUserEmail))
