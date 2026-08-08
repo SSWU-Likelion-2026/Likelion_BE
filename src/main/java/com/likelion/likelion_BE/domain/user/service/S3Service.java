@@ -21,9 +21,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
-import java.util.Iterator;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 @Slf4j
 @Service
@@ -55,24 +53,10 @@ public class S3Service {
             "image/gif"
     );
 
-    public String uploadIcon(byte[] bytes) {
-        String key = buildKey(".png");
-
-        s3Client.putObject(
-                PutObjectRequest.builder()
-                        .bucket(props.getS3().getBucket())
-                        .key(key)
-                        .contentType("image/png")
-                        .build(),
-                RequestBody.fromBytes(bytes)
-        );
-
-        return toPublicUrl(key);
-    }
-
     public String upload(MultipartFile file) {
-        String contentType = file.getContentType();
-        if (contentType == null || !ALLOWED_CONTENT_TYPES.contains(contentType.toLowerCase())) {
+        String declaredContentType = file.getContentType();
+        if (declaredContentType == null
+                || !ALLOWED_CONTENT_TYPES.contains(declaredContentType.toLowerCase(Locale.ROOT))) {
             throw new IllegalArgumentException("허용되지 않은 이미지 형식입니다.");
         }
 
@@ -83,18 +67,19 @@ public class S3Service {
             throw new IllegalStateException("이미지 업로드 중 오류가 발생했습니다.", e);
         }
 
-        // 실제 바이트가 이미지로 디코딩되는지 검증 (Content-Type 헤더 조작 방지)
-        if (!isActuallyImage(bytes)) {
-            throw new IllegalArgumentException("허용되지 않은 이미지 형식입니다.");
-        }
+        // 실제 바이트를 열어서 "진짜로 뭔지" 확인. 이 결과만 신뢰함.
+        String detectedContentType = detectImageContentType(bytes)
+                .orElseThrow(() -> new IllegalArgumentException("허용되지 않은 이미지 형식입니다."));
 
-        String key = buildKey(resolveExtension(contentType));
+        // 저장할 때는 클라이언트가 적은 값(declaredContentType)이 아니라
+        // 우리가 실제로 확인한 값(detectedContentType)을 사용
+        String key = buildKey(resolveExtension(detectedContentType));
 
         s3Client.putObject(
                 PutObjectRequest.builder()
                         .bucket(props.getS3().getBucket())
                         .key(key)
-                        .contentType(contentType)
+                        .contentType(detectedContentType)
                         .build(),
                 RequestBody.fromBytes(bytes)
         );
@@ -102,36 +87,56 @@ public class S3Service {
         return toPublicUrl(key);
     }
 
-    private boolean isActuallyImage(byte[] bytes) {
+    private Optional<String> detectImageContentType(byte[] bytes) {
         try (ImageInputStream iis = ImageIO.createImageInputStream(new ByteArrayInputStream(bytes))) {
             if (iis == null) {
-                return false;
+                return Optional.empty();
             }
 
             Iterator<ImageReader> readers = ImageIO.getImageReaders(iis);
             if (!readers.hasNext()) {
-                return false; // 이미지 포맷 자체를 인식 못함
+                return Optional.empty();
             }
 
             ImageReader reader = readers.next();
             try {
-                reader.setInput(iis, true, true); // 헤더만 읽음, 픽셀 디코딩 안 함
+                reader.setInput(iis, true, true);
+
                 int width = reader.getWidth(0);
                 int height = reader.getHeight(0);
-
                 long pixelCount = (long) width * height;
                 if (pixelCount > MAX_DECODED_PIXELS) {
                     log.warn("이미지 픽셀 수 초과. width={}, height={}, pixels={}", width, height, pixelCount);
-                    return false;
+                    return Optional.empty();
                 }
 
-                return true;
+                // reader가 실제로 감지한 포맷 이름 ("png", "jpeg", "gif", "webp" 등)
+                String formatName = reader.getFormatName().toLowerCase(Locale.ROOT);
+                String canonicalContentType = toCanonicalContentType(formatName);
+
+                if (canonicalContentType == null || !ALLOWED_CONTENT_TYPES.contains(canonicalContentType)) {
+                    log.warn("허용되지 않은 이미지 포맷 감지. detectedFormat={}", formatName);
+                    return Optional.empty();
+                }
+
+                return Optional.of(canonicalContentType);
             } finally {
                 reader.dispose();
             }
         } catch (IOException e) {
-            return false;
+            return Optional.empty();
         }
+    }
+
+    // ImageReader가 알려주는 포맷 이름을, 우리가 저장에 쓰는 Content-Type 문자열로 바꿔줌
+    private String toCanonicalContentType(String formatName) {
+        return switch (formatName) {
+            case "png" -> "image/png";
+            case "jpeg", "jpg" -> "image/jpeg";
+            case "gif" -> "image/gif";
+            case "webp" -> "image/webp";
+            default -> null;
+        };
     }
 
     public String uploadFromUrl(String imageUrl) {
