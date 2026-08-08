@@ -5,7 +5,6 @@ import com.likelion.likelion_BE.domain.project.enums.Part;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
