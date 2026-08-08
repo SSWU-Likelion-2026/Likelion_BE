@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -44,7 +45,8 @@ public class SessionCommentController {
             @Valid @RequestBody SessionCommentCreateUpdateRequest request
     ) {
         SessionCommentResponse response = commentService.createComment(sessionId, userDetails.getUsername(), request);
-        return ResponseEntity.ok(ApiResponse.created(response));
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.created(response));
     }
 
     @Operation(summary = "세션 후기 수정", description = "본인이 작성한 세션 후기를 수정합니다.")
