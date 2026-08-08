@@ -4,6 +4,7 @@ import com.likelion.likelion_BE.config.AppProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
@@ -56,6 +57,30 @@ public class S3Service {
                         .build(),
                 RequestBody.fromBytes(bytes)
         );
+
+        return toPublicUrl(key);
+    }
+
+    public String upload(MultipartFile file) {
+        String contentType = file.getContentType();
+        if (contentType == null || !ALLOWED_CONTENT_TYPES.contains(contentType.toLowerCase())) {
+            throw new IllegalArgumentException("허용되지 않은 이미지 형식입니다.");
+        }
+
+        String key = buildKey(resolveExtension(contentType));
+
+        try {
+            s3Client.putObject(
+                    PutObjectRequest.builder()
+                            .bucket(props.getS3().getBucket())
+                            .key(key)
+                            .contentType(contentType)
+                            .build(),
+                    RequestBody.fromBytes(file.getBytes())
+            );
+        } catch (IOException e) {
+            throw new IllegalStateException("이미지 업로드 중 오류가 발생했습니다.", e);
+        }
 
         return toPublicUrl(key);
     }
