@@ -3,12 +3,10 @@ package com.likelion.likelion_BE.domain.application.repository;
 import com.likelion.likelion_BE.domain.application.entity.Application;
 import com.likelion.likelion_BE.domain.application.enums.PassStatus;
 import com.likelion.likelion_BE.domain.application.enums.SubmitStatus;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.repository.EntityGraph;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.*;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
@@ -49,15 +47,16 @@ public interface ApplicationRepository extends JpaRepository<Application, Long> 
     @EntityGraph(attributePaths = {"answers", "answers.question", "recruitmentPart", "recruitment"})
     Optional<Application> findDetailById(Long id);
 
-    Optional<Application> findByUserIdAndSubmitStatus(Long userId, SubmitStatus submitStatus);
+    // SUBMITTED 조회용 - 여러 모집에 걸쳐 리스트로 반환
+    List<Application> findByUserIdAndSubmitStatusOrderByIdDesc(Long userId, SubmitStatus submitStatus);
 
-    Optional<Application> findByIdAndUserId(Long id, Long userId);
+    // DRAFT 조회용 - 비즈니스 규칙상 최대 1개이므로 단일 반환
+    // 방어적으로 가장 최근 것 하나만 선택 (만에 하나 규칙이 깨져 2개 이상 생기더라도 안전하게 동작)
+    Optional<Application> findFirstByUserIdAndSubmitStatusOrderByIdDesc(Long userId, SubmitStatus submitStatus);
 
-    @Modifying
-    @Query("DELETE FROM Application a WHERE a.id = :applicationId AND a.userId = :userId AND a.submitStatus = :submitStatus")
-    int deleteByIdAndUserIdAndSubmitStatus(
-            @Param("applicationId") Long applicationId,
-            @Param("userId") Long userId,
-            @Param("submitStatus") SubmitStatus submitStatus
-    );
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT a FROM Application a WHERE a.id = :id")
+    Optional<Application> findByIdForUpdate(@Param("id") Long id);
+
 }

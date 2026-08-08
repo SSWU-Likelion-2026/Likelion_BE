@@ -3,38 +3,20 @@ package com.likelion.likelion_BE.domain.mypage.dto.response;
 import java.util.List;
 
 public record ApplicationListResponse(
-        boolean hasApplication,
         String status,
-        Long applicationId,
-        String name,
-        String part,
-        String applicationStatus,
-        String submittedAt,
-        String updatedAt
+        int totalCount,
+        List<ApplicationListItem> applications
 ) {
+    public static ApplicationListResponse of(String status, List<ApplicationListItem> items) {
+        return new ApplicationListResponse(status, items.size(), items);
+    }
 
-    public static ApplicationListResponse of(
-            String status,
+    public record ApplicationListItem(
             Long applicationId,
             String name,
             String part,
             String applicationStatus,
-            String submittedAt,
-            String updatedAt
+            String submittedAt
     ) {
-        return new ApplicationListResponse(
-                true,
-                status,
-                applicationId,
-                name,
-                part,
-                applicationStatus,
-                submittedAt,
-                updatedAt
-        );
-    }
-
-    public static ApplicationListResponse empty(String status) {
-        return new ApplicationListResponse(false, status, null, null, null, null, null, null);
     }
 }

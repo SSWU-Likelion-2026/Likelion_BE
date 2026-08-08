@@ -69,13 +69,13 @@ public class MypageController {
 
     @Operation(
             summary = "지원 현황 조회",
-            description = "status=SUBMITTED(지원 완료) 또는 status=DRAFT(임시저장). 유저당 지원서는 최대 1개입니다.")
+            description = "status=SUBMITTED: 제출완료 지원서 목록(List). status=DRAFT: 임시저장 지원서 단일 객체(최대 1개).")
     @GetMapping("/applications")
-    public ResponseEntity<ApiResponse<ApplicationListResponse>> getApplication(
+    public ResponseEntity<ApiResponse<Object>> getApplication(
             @RequestParam String status,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
-        ApplicationListResponse response = mypageApplicationService.getApplication(
+        Object response = mypageApplicationService.getApplication(
                 userDetails.getUsername(),
                 status
         );

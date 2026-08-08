@@ -7,6 +7,7 @@ import com.likelion.likelion_BE.domain.application.enums.SubmitStatus;
 import com.likelion.likelion_BE.domain.application.repository.ApplicationRepository;
 import com.likelion.likelion_BE.domain.mypage.dto.response.ApplicationDeleteResponse;
 import com.likelion.likelion_BE.domain.mypage.dto.response.ApplicationDetailResponse;
+import com.likelion.likelion_BE.domain.mypage.dto.response.ApplicationDraftResponse;
 import com.likelion.likelion_BE.domain.mypage.dto.response.ApplicationListResponse;
 import com.likelion.likelion_BE.domain.mypage.exception.MyPageErrorCode;
 import com.likelion.likelion_BE.domain.user.entity.User;
@@ -19,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -31,41 +33,51 @@ public class MypageApplicationService {
     private final ApplicationRepository applicationRepository;
     private final UserRepository userRepository;
 
-    public ApplicationListResponse getApplication(String email, String statusParam) {
+    public Object getApplication(String email, String statusParam) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new CustomException(AuthErrorCode.UNAUTHORIZED));
 
         SubmitStatus submitStatus = parseSubmitStatus(statusParam);
 
-        Optional<Application> applicationOpt =
-                applicationRepository.findByUserIdAndSubmitStatus(user.getId(), submitStatus);
+        if (submitStatus == SubmitStatus.SUBMITTED) {
+            return getSubmittedList(user);
+        }
+        return getDraft(user);
+    }
+
+    private ApplicationListResponse getSubmittedList(User user) {
+        List<Application> applications = applicationRepository
+                .findByUserIdAndSubmitStatusOrderByIdDesc(user.getId(), SubmitStatus.SUBMITTED);
+
+        List<ApplicationListResponse.ApplicationListItem> items = applications.stream()
+                .map(app -> new ApplicationListResponse.ApplicationListItem(
+                        app.getId(),
+                        user.getName(),
+                        app.getRecruitmentPart().getName(),
+                        app.getPassStatus().getDescription(),
+                        formatDate(app.getSubmittedAt())
+                ))
+                .toList();
+
+        return ApplicationListResponse.of(SubmitStatus.SUBMITTED.name(), items);
+    }
+
+    private ApplicationDraftResponse getDraft(User user) {
+        Optional<Application> applicationOpt = applicationRepository
+                .findFirstByUserIdAndSubmitStatusOrderByIdDesc(user.getId(), SubmitStatus.DRAFT);
 
         if (applicationOpt.isEmpty()) {
-            return ApplicationListResponse.empty(submitStatus.name());
+            return ApplicationDraftResponse.empty();
         }
 
         Application application = applicationOpt.get();
 
-        String submittedAt = null;
-        String updatedAt = null;
-        String applicationStatus;
-
-        if (submitStatus == SubmitStatus.SUBMITTED) {
-            submittedAt = formatDate(application.getSubmittedAt());
-            applicationStatus = application.getPassStatus().getDescription();
-        } else {
-            updatedAt = formatDate(application.getSavedAt());
-            applicationStatus = application.getSubmitStatus().getDescription();
-        }
-
-        return ApplicationListResponse.of(
-                submitStatus.name(),
+        return ApplicationDraftResponse.of(
                 application.getId(),
                 user.getName(),
-                application.getRecruitmentPart().getName(), // 필드명 추정, 확인 필요
-                applicationStatus,
-                submittedAt,
-                updatedAt
+                application.getRecruitmentPart().getName(),
+                application.getSubmitStatus().getDescription(),
+                formatDate(application.getSavedAt())
         );
     }
 
@@ -80,20 +92,16 @@ public class MypageApplicationService {
             throw new CustomException(MyPageErrorCode.NOT_OWN_APPLICATION);
         }
 
-        if(application.getSubmitStatus() == SubmitStatus.SUBMITTED) {
-            throw new CustomException(MyPageErrorCode.APPLICATION_ALREADY_SUBMITTED);
-        }
-
         return new ApplicationDetailResponse(
                 application.getId(),
                 application.getRecruitment().getId(),
                 application.getSubmitStatus().name(),
                 application.getRecruitmentPart().getId(),
-                application.getRecruitmentPart().getName(), // 필드명 추정, 확인 필요
+                application.getRecruitmentPart().getName(),
                 application.getAnswers().stream()
                         .map(this::toAnswerItem)
                         .toList(),
-                application.getUpdatedAt() // BaseEntity 필드명 추정, 확인 필요
+                application.getUpdatedAt()
         );
     }
 
@@ -102,22 +110,18 @@ public class MypageApplicationService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new CustomException(AuthErrorCode.UNAUTHORIZED));
 
-        Application application = applicationRepository.findById(applicationId)
+        Application application = applicationRepository.findByIdForUpdate(applicationId)
                 .orElseThrow(() -> new CustomException(MyPageErrorCode.APPLICATION_NOT_FOUND));
 
         if (!application.getUserId().equals(user.getId())) {
             throw new CustomException(MyPageErrorCode.NOT_OWN_APPLICATION);
         }
 
-        int deletedCount = applicationRepository.deleteByIdAndUserIdAndSubmitStatus(
-                applicationId,
-                user.getId(),
-                SubmitStatus.DRAFT
-        );
-
-        if (deletedCount == 0) {
+        if (application.getSubmitStatus() == SubmitStatus.SUBMITTED) {
             throw new CustomException(MyPageErrorCode.APPLICATION_ALREADY_SUBMITTED);
         }
+
+        applicationRepository.delete(application);
 
         return ApplicationDeleteResponse.of(applicationId);
     }
