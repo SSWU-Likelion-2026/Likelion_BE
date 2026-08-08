@@ -52,6 +52,13 @@ public class SecurityConfig {
                         ).permitAll()
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/v1/projects/**").permitAll()
+
+                        // 1. 세션 및 세션 댓글 'GET(조회)' 요청은 누구나 허용
+                        .requestMatchers(HttpMethod.GET, "/api/v1/sessions/**").permitAll()
+                        // 2. 세션 댓글 '작성/수정/삭제' (POST, PUT, DELETE 등)는 권한 필요
+                        .requestMatchers("/api/v1/sessions/*/comments/**", "/api/v1/sessions/comments/**")
+                        .hasAnyAuthority("MEMBER", "LEADER", "MANAGER")
+
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(
