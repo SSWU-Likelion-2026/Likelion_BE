@@ -15,6 +15,7 @@ import com.likelion.likelion_BE.domain.user.entity.User;
 import com.likelion.likelion_BE.domain.user.exception.AuthErrorCode;
 import com.likelion.likelion_BE.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -77,23 +78,46 @@ public class UserStampService {
             throw new CustomException(StampErrorCode.MISSION_NOT_IN_PROGRESS);
         }
 
-        // [검증 2] 이미 도장을 찍었는지 중복 인증 확인
-        if (userStampRepository.existsByUserIdAndMissionId(userId, missionId)) {
-            throw new CustomException(StampErrorCode.STAMP_MISSION_ALREADY_STAMPED);
+        // [검증 2] 입력한 날짜가 미션 시작일보다 빠르거나 종료일보다 늦은 경우 차단
+        LocalDate authDate = request.authDate();
+        LocalDate startDate = mission.getStartAt().toLocalDate();
+        LocalDate endDate = mission.getEndAt().toLocalDate();
+
+        if (authDate.isBefore(startDate) || authDate.isAfter(endDate)) {
+            throw new CustomException(StampErrorCode.INVALID_AUTH_DATE); // 미션 기간 외 날짜 에러
         }
+
+        // [검증 3] 이미 도장을 찍었는지 중복 인증 확인
+        if (userStampRepository.existsByUserIdAndMissionId(userId, missionId)) {
+            throw new CustomException(StampErrorCode.MISSION_ALREADY_COMPLETED);
+        }
+
+        // [검증 4] 이미지 null 및 0바이트 파일 검증
+        if (image == null || image.isEmpty()) {
+            throw new CustomException(StampErrorCode.STAMP_IMAGE_REQUIRED);
+        }
+
 
         // S3 사진 업로드
         String authImageUrl = s3Uploader.upload(image, "stamps");
-
 
         // UserStamp 저장
         UserStamp userStamp = UserStamp.of(
                 mission,
                 user,
                 authImageUrl,
-                request.authDate(),
-                request.content());
-        userStampRepository.save(userStamp);
+                authDate,
+                request.content()
+        );
+
+        try {
+            // 유니크 제약조건 위반 여부 확인
+            userStampRepository.saveAndFlush(userStamp);
+        } catch (DataIntegrityViolationException e) {
+            // 동시 요청으로 인해 DB 저장 실패 시, 이미 업로드된 S3 객체 삭제
+            s3Uploader.delete(authImageUrl);
+            throw new CustomException(StampErrorCode.MISSION_ALREADY_COMPLETED);
+        }
 
         return StampAuthResponse.from(userStamp);
     }

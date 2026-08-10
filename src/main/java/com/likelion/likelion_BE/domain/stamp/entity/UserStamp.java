@@ -9,7 +9,15 @@ import lombok.*;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "user_stamp")
+@Table(
+        name = "user_stamp",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_user_stamp_user_mission",
+                        columnNames = {"user_id", "mission_id"}
+                )
+        }
+)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)

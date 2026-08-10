@@ -2,10 +2,12 @@ package com.likelion.likelion_BE.common.s3;
 
 import com.likelion.likelion_BE.config.AppProperties;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.IOException;
@@ -13,6 +15,7 @@ import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class S3Uploader {
 
     private final S3Client s3Client;
@@ -47,5 +50,43 @@ public class S3Uploader {
         } catch (IOException e) {
             throw new RuntimeException("S3 파일 업로드에 실패했습니다.", e);
         }
+    }
+
+    public void delete(String fileUrl) {
+        if (fileUrl == null || fileUrl.isBlank()) {
+            return;
+        }
+
+        try {
+            String key = extractKeyFromUrl(fileUrl);
+
+            DeleteObjectRequest deleteObjectRequest = DeleteObjectRequest.builder()
+                    .bucket(props.getS3().getBucket())
+                    .key(key)
+                    .build();
+
+            s3Client.deleteObject(deleteObjectRequest);
+            log.info("S3 파일 삭제 완료: {}", key);
+        } catch (Exception e) {
+            log.error("S3 파일 삭제 실패: {}", fileUrl, e);
+        }
+    }
+
+    // S3 URL에서 Key(경로 + 파일명)를 추출해주는 헬퍼 메서드
+    private String extractKeyFromUrl(String fileUrl) {
+        String prefix = String.format("https://%s.s3.%s.amazonaws.com/",
+                props.getS3().getBucket(),
+                props.getS3().getRegion());
+
+        if (fileUrl.startsWith(prefix)) {
+            return fileUrl.substring(prefix.length());
+        }
+
+        int slashIndex = fileUrl.indexOf(".amazonaws.com/");
+        if (slashIndex != -1) {
+            return fileUrl.substring(slashIndex + ".amazonaws.com/".length());
+        }
+
+        return fileUrl;
     }
 }
