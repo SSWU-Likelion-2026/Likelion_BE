@@ -45,13 +45,19 @@ public class SecurityConfig {
                                 "/api/auth/reissue",
                                 "/api/auth/email/verification-code",
                                 "/api/auth/email/verify",
-                                "/api/v1/recruitments/current",
-                                "/api/v1/projects",
+                                "/api/v1/home/**",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**"
                         ).permitAll()
                         .requestMatchers("/api/v1/admin/**").hasRole("MANAGER")
                         .requestMatchers(HttpMethod.GET, "/api/v1/projects/**").permitAll()
+
+                        // 1. 세션 및 세션 댓글 'GET(조회)' 요청은 누구나 허용
+                        .requestMatchers(HttpMethod.GET, "/api/v1/sessions/**").permitAll()
+                        // 2. 세션 댓글 '작성/수정/삭제' (POST, PUT, DELETE 등)는 권한 필요
+                        .requestMatchers("/api/v1/sessions/*/comments/**", "/api/v1/sessions/comments/**")
+                        .hasAnyAuthority("MEMBER", "LEADER", "MANAGER")
+
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(
