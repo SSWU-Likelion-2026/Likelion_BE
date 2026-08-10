@@ -9,12 +9,19 @@ import lombok.*;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "user_stamp")
+@Table(
+        name = "user_stamp",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_user_stamp_user_mission",
+                        columnNames = {"user_id", "mission_id"}
+                )
+        }
+)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder(access = AccessLevel.PRIVATE)
-
 public class UserStamp extends BaseEntity {
 
     @Id
@@ -39,8 +46,7 @@ public class UserStamp extends BaseEntity {
     private String content;
 
     // 생성 메서드
-    public static UserStamp of(Mission mission, User user, String authImageUrl,
-                                   LocalDate authDate, String content) {
+    public static UserStamp of(Mission mission, User user, String authImageUrl, LocalDate authDate, String content) {
         return UserStamp.builder()
                 .mission(mission)
                 .user(user)

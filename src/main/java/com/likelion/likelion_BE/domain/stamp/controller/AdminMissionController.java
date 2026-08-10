@@ -18,7 +18,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/admin/stamps/missions")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAuthority('MANAGER')")
 public class AdminMissionController {
 
     private final AdminMissionService adminMissionService;
