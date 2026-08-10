@@ -2,7 +2,6 @@ package com.likelion.likelion_BE.domain.application.controller;
 
 
 import com.likelion.likelion_BE.common.response.ApiResponse;
-import com.likelion.likelion_BE.common.s3.S3Uploader;
 import com.likelion.likelion_BE.domain.application.dto.request.ApplicationSaveRequest;
 import com.likelion.likelion_BE.domain.application.dto.response.CurrentQuestionsResponse;
 import com.likelion.likelion_BE.domain.application.dto.response.MyApplicationResponse;
@@ -24,7 +23,6 @@ import org.springframework.web.multipart.MultipartFile;
 public class ApplicationController {
 
     private final ApplicationService applicationService;
-    private final S3Uploader s3Uploader;
 
     // 지원서 질문 목록 조회
     @Operation(summary = "지원서 질문 목록 조회", description = "현재 진행 중인 모집 공고의 공통 및 파트별 질문 목록을 조회합니다.")
@@ -73,7 +71,7 @@ public class ApplicationController {
             @RequestPart("file") MultipartFile file
     ) {
         // "applications" 폴더에 업로드 후 S3 URL 문자열 반환
-        String fileUrl = s3Uploader.upload(file, "applications");
+        String fileUrl = applicationService.uploadApplicationFile(file);
         return ApiResponse.onSuccess(fileUrl);
     }
 }
