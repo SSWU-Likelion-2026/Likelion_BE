@@ -5,8 +5,8 @@ import com.likelion.likelion_BE.config.jwt.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -38,6 +38,7 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .authorizeHttpRequests(auth -> auth
+                        // 인증 없이 허용
                         .requestMatchers(
                                 "/api/auth/signup",
                                 "/api/auth/login",
@@ -47,17 +48,27 @@ public class SecurityConfig {
                                 "/api/auth/email/verify",
                                 "/api/v1/home/**",
                                 "/swagger-ui/**",
-                                "/v3/api-docs/**"
+                                "/v3/api-docs/**",
+                                "/api/v1/recruitments/**"
                         ).permitAll()
-                        .requestMatchers("/api/v1/admin/**").hasAuthority("MANAGER")
+
+                        // GET 전용 읽기 허용 API
+                        .requestMatchers(HttpMethod.GET, "/api/v1/sessions/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/projects/**").permitAll()
 
-                        // 1. 세션 및 세션 댓글 'GET(조회)' 요청은 누구나 허용
-                        .requestMatchers(HttpMethod.GET, "/api/v1/sessions/**").permitAll()
-                        // 2. 세션 댓글 '작성/수정/삭제' (POST, PUT, DELETE 등)는 권한 필요
-                        .requestMatchers("/api/v1/sessions/*/comments/**", "/api/v1/sessions/comments/**")
-                        .hasAnyAuthority("MEMBER", "LEADER", "MANAGER")
+                        // 회원 기능 API
+                        .requestMatchers(
+                                "/api/v1/sessions/*/comments/**",
+                                "/api/v1/sessions/comments/**",
+                                "/api/v1/applications/**",
+                                "/api/v1/stamps/**"
 
+                        ).hasAnyAuthority("MEMBER", "LEADER", "MANAGER")
+
+                        // 관리자 전용 API
+                        .requestMatchers("/api/v1/admin/**").hasAuthority("MANAGER")
+
+                        // 기타 모든 요청은 인증 필요
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(
