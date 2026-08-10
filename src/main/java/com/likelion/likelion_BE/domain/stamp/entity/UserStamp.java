@@ -38,12 +38,12 @@ public class UserStamp extends BaseEntity {
     private String content;
 
     // 생성 메서드
-    public static UserStamp of(Mission mission, User user, String authImageUrl, String content) {
+    public static UserStamp of(Mission mission, User user, String authImageUrl, LocalDate authDate, String content) {
         return UserStamp.builder()
                 .mission(mission)
                 .user(user)
                 .authImageUrl(authImageUrl)
-                .authDate(LocalDate.now())
+                .authDate(authDate)
                 .content(content)
                 .build();
     }

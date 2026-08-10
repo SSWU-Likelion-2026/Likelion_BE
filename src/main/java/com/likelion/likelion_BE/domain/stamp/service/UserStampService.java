@@ -87,7 +87,12 @@ public class UserStampService {
 
 
         // UserStamp 저장
-        UserStamp userStamp = UserStamp.of(mission, user, authImageUrl, request.content());
+        UserStamp userStamp = UserStamp.of(
+                mission,
+                user,
+                authImageUrl,
+                request.authDate(),
+                request.content());
         userStampRepository.save(userStamp);
 
         return StampAuthResponse.from(userStamp);
