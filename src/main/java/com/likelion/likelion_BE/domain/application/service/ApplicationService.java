@@ -19,6 +19,9 @@ import com.likelion.likelion_BE.domain.recruit.exception.RecruitmentErrorCode;
 import com.likelion.likelion_BE.domain.recruit.repository.RecruitmentPartRepository;
 import com.likelion.likelion_BE.domain.recruit.repository.RecruitmentQuestionRepository;
 import com.likelion.likelion_BE.domain.recruit.repository.RecruitmentRepository;
+import com.likelion.likelion_BE.domain.user.entity.User;
+import com.likelion.likelion_BE.domain.user.exception.AuthErrorCode;
+import com.likelion.likelion_BE.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,6 +42,7 @@ public class ApplicationService {
     private final RecruitmentPartRepository recruitmentPartRepository;
     private final RecruitmentQuestionRepository recruitmentQuestionRepository;
     private final S3Uploader s3Uploader;
+    private final UserRepository userRepository;
 
     // 현재 진행 중인 모집 공고 질문 목록 조회
     public CurrentQuestionsResponse getCurrentQuestions() {
@@ -272,10 +276,14 @@ public class ApplicationService {
     public MyApplicationResponse getMyApplication(Long userId) {
         Recruitment recruitment = getCurrentRecruitment();
 
-        // 💡 해당 유저가 현재 기수에 작성한 지원서 조회
+        // 해당 유저가 현재 기수에 작성한 지원서 조회
         Application application = applicationRepository.findByUserIdAndRecruitmentId(userId, recruitment.getId())
                 .orElseThrow(() -> new CustomException(ApplicationErrorCode.APPLICATION_NOT_FOUND));
 
-        return MyApplicationResponse.from(application);
+        // 유저 정보 조회
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
+
+        return MyApplicationResponse.from(application, user);
     }
 }

@@ -2,6 +2,7 @@ package com.likelion.likelion_BE.domain.application.dto.response;
 
 import com.likelion.likelion_BE.domain.application.entity.Application;
 import com.likelion.likelion_BE.domain.application.enums.SubmitStatus;
+import com.likelion.likelion_BE.domain.user.entity.User;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -41,7 +42,7 @@ public record MyApplicationResponse(
             String answerContent
     ) {}
 
-    public static MyApplicationResponse from(Application application) {
+    public static MyApplicationResponse from(Application application, User user) {
         List<AnswerDetail> answerDetails = application.getAnswers().stream()
                 .map(answer -> new AnswerDetail(
                         answer.getId(),
@@ -57,14 +58,13 @@ public record MyApplicationResponse(
                 new PartInfo(application.getRecruitmentPart().getId(), application.getRecruitmentPart().getName()) : null;
 
         // 지원자 정보
-        // TODO: 유저 엔티티 연동 후 User 객체에서 실제 값 추출하도록 변경
         ApplicantInfo applicantInfo = new ApplicantInfo(
-                application.getUserId(),
-                "김멋사",
-                "likelion@sungshin.ac.kr",
-                "010-1234-5678",
-                "인공지능전공",
-                "20231111"
+                user.getId(),
+                user.getName(),
+                user.getEmail(),
+                user.getPhoneNumber(),
+                user.getMajor(),
+                user.getStudentId()
         );
 
         return new MyApplicationResponse(
