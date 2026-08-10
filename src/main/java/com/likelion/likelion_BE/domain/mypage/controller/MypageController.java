@@ -1,10 +1,9 @@
 package com.likelion.likelion_BE.domain.mypage.controller;
 
 import com.likelion.likelion_BE.common.response.ApiResponse;
+import com.likelion.likelion_BE.domain.mypage.dto.response.*;
 import com.likelion.likelion_BE.domain.mypage.dto.request.ProfileUpdateRequest;
-import com.likelion.likelion_BE.domain.mypage.dto.response.MypageResponse;
-import com.likelion.likelion_BE.domain.mypage.dto.response.ProfileImageUpdateResponse;
-import com.likelion.likelion_BE.domain.mypage.dto.response.ProfileUpdateResponse;
+import com.likelion.likelion_BE.domain.mypage.service.MypageApplicationService;
 import com.likelion.likelion_BE.domain.mypage.service.MypageService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -25,6 +24,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class MypageController {
 
     private final MypageService mypageService;
+    private final MypageApplicationService mypageApplicationService;
 
     @Operation(
             summary = "프로필 불러오기",
@@ -62,6 +62,52 @@ public class MypageController {
         ProfileImageUpdateResponse response = mypageService.updateProfileImage(
                 userDetails.getUsername(),
                 image
+        );
+
+        return ResponseEntity.ok(ApiResponse.onSuccess(response));
+    }
+
+    @Operation(
+            summary = "지원 현황 조회",
+            description = "status=SUBMITTED: 제출완료 지원서 목록(List). status=DRAFT: 임시저장 지원서 단일 객체(최대 1개).")
+    @GetMapping("/applications")
+    public ResponseEntity<ApiResponse<Object>> getApplication(
+            @RequestParam String status,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        Object response = mypageApplicationService.getApplication(
+                userDetails.getUsername(),
+                status
+        );
+
+        return ResponseEntity.ok(ApiResponse.onSuccess(response));
+    }
+
+    @Operation(summary = "임시저장 지원서 불러오기", description = "")
+    @GetMapping("/applications/{applicationId}")
+    public ResponseEntity<ApiResponse<ApplicationDetailResponse>> getApplicationDetail(
+            @PathVariable Long applicationId,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        ApplicationDetailResponse response = mypageApplicationService.getApplicationDetail(
+                userDetails.getUsername(),
+                applicationId
+        );
+
+        return ResponseEntity.ok(ApiResponse.onSuccess(response));
+    }
+
+    @Operation(
+            summary = "지원서 삭제",
+            description = "임시저장 상태의 지원서만 삭제 가능합니다.")
+    @DeleteMapping("/applications/{applicationId}")
+    public ResponseEntity<ApiResponse<ApplicationDeleteResponse>> deleteApplication(
+            @PathVariable Long applicationId,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        ApplicationDeleteResponse response = mypageApplicationService.deleteApplication(
+                userDetails.getUsername(),
+                applicationId
         );
 
         return ResponseEntity.ok(ApiResponse.onSuccess(response));
