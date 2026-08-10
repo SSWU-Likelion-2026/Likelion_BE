@@ -159,7 +159,14 @@ public class ApplicationService {
             throw new CustomException(ApplicationErrorCode.INVALID_FILE);
         }
 
-        return s3Uploader.upload(file, "applications");
+        // 2. S3 업로드 수행
+        String fileUrl = s3Uploader.upload(file, "applications");
+
+        if (fileUrl == null) {
+            throw new CustomException(ApplicationErrorCode.INVALID_FILE);
+        }
+
+        return fileUrl;
     }
 
 
