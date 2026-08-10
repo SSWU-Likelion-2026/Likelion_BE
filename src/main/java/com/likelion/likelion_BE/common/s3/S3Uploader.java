@@ -28,7 +28,7 @@ public class S3Uploader {
 
         String originalFilename = file.getOriginalFilename();
         String safeFilename = cleanFilename(originalFilename);
-        String storeFileName = dirName + "/" + UUID.randomUUID() + "_" + originalFilename;
+        String storeFileName = dirName + "/" + UUID.randomUUID() + "_" + safeFilename;
 
         try {
             PutObjectRequest putObjectRequest = PutObjectRequest.builder()
@@ -92,7 +92,7 @@ public class S3Uploader {
     }
 
     private String cleanFilename(String originalFilename) {
-        if (originalFilename == null) {
+        if (originalFilename == null || originalFilename.isBlank()) {
             return "file";
         }
         // # 및 ? 문자를 언더스코어(_)로 치환하여 S3 Key 및 URL 안전성 확보
