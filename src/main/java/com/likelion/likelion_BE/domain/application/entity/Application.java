@@ -53,7 +53,6 @@ public class Application extends BaseEntity {
     @Column(name = "submitted_at")
     private LocalDateTime submittedAt;
 
-    // TODO: 유저 엔티티 연관관계 매핑
     @Column(name = "user_id")
     private Long userId;
 
