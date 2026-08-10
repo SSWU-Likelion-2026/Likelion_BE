@@ -10,6 +10,9 @@ import com.likelion.likelion_BE.domain.mypage.dto.response.ApplicationDetailResp
 import com.likelion.likelion_BE.domain.mypage.dto.response.ApplicationDraftResponse;
 import com.likelion.likelion_BE.domain.mypage.dto.response.ApplicationListResponse;
 import com.likelion.likelion_BE.domain.mypage.exception.MyPageErrorCode;
+import com.likelion.likelion_BE.domain.recruit.entity.Recruitment;
+import com.likelion.likelion_BE.domain.recruit.enums.RecruitmentStatus;
+import com.likelion.likelion_BE.domain.recruit.repository.RecruitmentRepository;
 import com.likelion.likelion_BE.domain.user.entity.User;
 import com.likelion.likelion_BE.domain.user.exception.AuthErrorCode;
 import com.likelion.likelion_BE.domain.user.repository.UserRepository;
@@ -32,6 +35,7 @@ public class MypageApplicationService {
 
     private final ApplicationRepository applicationRepository;
     private final UserRepository userRepository;
+    private final RecruitmentRepository recruitmentRepository;
 
     public Object getApplication(String email, String statusParam) {
         User user = userRepository.findByEmail(email)
@@ -63,10 +67,22 @@ public class MypageApplicationService {
     }
 
     private ApplicationDraftResponse getDraft(User user) {
-        Optional<Application> applicationOpt = applicationRepository
-                .findFirstByUserIdAndSubmitStatusOrderByIdDesc(user.getId(), SubmitStatus.DRAFT);
+        // 현재 OPEN인 모집이 없으면 임시저장 대상 자체가 없음
+        Optional<Recruitment> currentRecruitmentOpt =
+                recruitmentRepository.findFirstByStatusOrderByCreatedAtDesc(RecruitmentStatus.OPEN);
 
-        if (applicationOpt.isEmpty()) {
+        if (currentRecruitmentOpt.isEmpty()) {
+            return ApplicationDraftResponse.empty();
+        }
+
+        Recruitment currentRecruitment = currentRecruitmentOpt.get();
+
+        // (user_id, recruitment_id) 유니크 제약으로 항상 0개 또는 1개
+        Optional<Application> applicationOpt = applicationRepository
+                .findByUserIdAndRecruitmentId(user.getId(), currentRecruitment.getId());
+
+        // 지원서가 없거나, 있어도 이미 SUBMITTED라면 "임시저장"엔 해당 없음
+        if (applicationOpt.isEmpty() || applicationOpt.get().getSubmitStatus() != SubmitStatus.DRAFT) {
             return ApplicationDraftResponse.empty();
         }
 
