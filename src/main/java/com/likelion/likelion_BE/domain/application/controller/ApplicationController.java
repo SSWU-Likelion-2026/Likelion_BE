@@ -2,6 +2,7 @@ package com.likelion.likelion_BE.domain.application.controller;
 
 
 import com.likelion.likelion_BE.common.response.ApiResponse;
+import com.likelion.likelion_BE.common.s3.S3Uploader;
 import com.likelion.likelion_BE.domain.application.dto.request.ApplicationSaveRequest;
 import com.likelion.likelion_BE.domain.application.dto.response.CurrentQuestionsResponse;
 import com.likelion.likelion_BE.domain.application.dto.response.MyApplicationResponse;
@@ -10,8 +11,10 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @Tag(name = "User Application API", description = "유저 - 지원서 관련 API")
 @RestController
@@ -21,6 +24,7 @@ import org.springframework.web.bind.annotation.*;
 public class ApplicationController {
 
     private final ApplicationService applicationService;
+    private final S3Uploader s3Uploader;
 
     // 지원서 질문 목록 조회
     @Operation(summary = "지원서 질문 목록 조회", description = "현재 진행 중인 모집 공고의 공통 및 파트별 질문 목록을 조회합니다.")
@@ -60,5 +64,16 @@ public class ApplicationController {
     ) {
         Long applicationId = applicationService.submitApplication(userId, request);
         return ApiResponse.onSuccess(applicationId);
+    }
+
+    // 지원서 첨부파일 s3 업로드 API
+    @Operation(summary = "지원서 첨부파일(포트폴리오) S3 업로드", description = "파일 업로드 성공 시 반환된 S3 URL을 지원서 답변(content)에 넣어 저장/제출합니다.")
+    @PostMapping(value = "/applications/files", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<String> uploadApplicationFile(
+            @RequestPart("file") MultipartFile file
+    ) {
+        // "applications" 폴더에 업로드 후 S3 URL 문자열 반환
+        String fileUrl = s3Uploader.upload(file, "applications");
+        return ApiResponse.onSuccess(fileUrl);
     }
 }
