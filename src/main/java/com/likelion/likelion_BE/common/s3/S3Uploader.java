@@ -23,11 +23,12 @@ public class S3Uploader {
 
     public String upload(MultipartFile file, String dirName) {
         if (file == null || file.isEmpty()) {
-            return null;
+            throw new IllegalArgumentException("업로드할 파일이 비어있습니다.");
         }
 
         String originalFilename = file.getOriginalFilename();
-        String storeFileName = dirName + "/" + UUID.randomUUID() + "_" + originalFilename;
+        String safeFilename = cleanFilename(originalFilename);
+        String storeFileName = dirName + "/" + UUID.randomUUID() + "_" + safeFilename;
 
         try {
             PutObjectRequest putObjectRequest = PutObjectRequest.builder()
@@ -88,5 +89,13 @@ public class S3Uploader {
         }
 
         return fileUrl;
+    }
+
+    private String cleanFilename(String originalFilename) {
+        if (originalFilename == null || originalFilename.isBlank()) {
+            return "file";
+        }
+        // # 및 ? 문자를 언더스코어(_)로 치환하여 S3 Key 및 URL 안전성 확보
+        return originalFilename.replaceAll("[#?]", "_");
     }
 }

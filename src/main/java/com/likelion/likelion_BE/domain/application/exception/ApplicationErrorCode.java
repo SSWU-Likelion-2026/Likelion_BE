@@ -14,7 +14,8 @@ public enum ApplicationErrorCode implements BaseCode {
     REQUIRED_QUESTION_MISSING(HttpStatus.BAD_REQUEST, "APPLICATION400_3", "필수 질문에 대한 답변을 모두 작성해 주세요."),
     ANSWER_LENGTH_EXCEEDED(HttpStatus.BAD_REQUEST, "APPLICATION400_4", "답변 글자 수가 제한을 초과했습니다."),
     APPLICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "APPLICATION404_1", "지원서를 찾을 수 없습니다."),
-    INVALID_PASS_STATUS(HttpStatus.NOT_FOUND, "APPLICATION400_5", "해당 상태를 찾을 수 없습니다.");
+    INVALID_PASS_STATUS(HttpStatus.NOT_FOUND, "APPLICATION400_5", "해당 상태를 찾을 수 없습니다."),
+    INVALID_FILE(HttpStatus.BAD_REQUEST, "APPLICATION400_6", "올바른 파일을 업로드 해주세요.");
     private final HttpStatus httpStatus;
     private final String code;
     private final String message;
