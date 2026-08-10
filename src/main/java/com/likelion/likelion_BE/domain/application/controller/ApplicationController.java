@@ -10,8 +10,10 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @Tag(name = "User Application API", description = "유저 - 지원서 관련 API")
 @RestController
@@ -60,5 +62,16 @@ public class ApplicationController {
     ) {
         Long applicationId = applicationService.submitApplication(userId, request);
         return ApiResponse.onSuccess(applicationId);
+    }
+
+    // 지원서 첨부파일 s3 업로드 API
+    @Operation(summary = "지원서 첨부파일(포트폴리오) S3 업로드", description = "파일 업로드 성공 시 반환된 S3 URL을 지원서 답변(content)에 넣어 저장/제출합니다.")
+    @PostMapping(value = "/applications/files", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<String> uploadApplicationFile(
+            @RequestPart("file") MultipartFile file
+    ) {
+        // "applications" 폴더에 업로드 후 S3 URL 문자열 반환
+        String fileUrl = applicationService.uploadApplicationFile(file);
+        return ApiResponse.onSuccess(fileUrl);
     }
 }

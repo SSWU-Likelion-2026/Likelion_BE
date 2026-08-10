@@ -3,6 +3,7 @@ package com.likelion.likelion_BE.domain.application.dto.response;
 import com.likelion.likelion_BE.domain.application.entity.Application;
 import com.likelion.likelion_BE.domain.application.enums.PassStatus;
 import com.likelion.likelion_BE.domain.application.enums.SubmitStatus;
+import com.likelion.likelion_BE.domain.user.entity.User;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -17,16 +18,15 @@ public record AdminApplicationDetailResponse(
         LocalDateTime submittedAt,
         List<AnswerDetailInfo> answers
 ) {
-    public static AdminApplicationDetailResponse from(Application application) {
-        // TODO: 유저 엔티티 완성 시 실제 유저 정보 연결
-        Long userId = application.getUserId();
-        ApplicantInfo dummyApplicant = new ApplicantInfo(
-                userId,
-                "지원자" + userId,
-                "2024" + String.format("%04d", userId) + "@sungshin.ac.kr",
-                "010-0000-0000",
-                "학과미정",
-                "2024" + String.format("%04d", userId)
+    public static AdminApplicationDetailResponse from(Application application, User user) {
+
+        ApplicantInfo applicantInfo = new ApplicantInfo(
+                user.getId(),
+                user.getName(),
+                user.getEmail(),
+                user.getPhoneNumber(),
+                user.getMajor(),
+                user.getStudentId()
         );
 
         PartInfo partInfo = application.getRecruitmentPart() != null
@@ -42,7 +42,7 @@ public record AdminApplicationDetailResponse(
         return new AdminApplicationDetailResponse(
                 application.getId(),
                 term,
-                dummyApplicant,
+                applicantInfo,
                 partInfo,
                 application.getSubmitStatus(),
                 application.getPassStatus(),

@@ -2,10 +2,15 @@ package com.likelion.likelion_BE.domain.application.repository;
 
 import com.likelion.likelion_BE.domain.application.entity.Application;
 import com.likelion.likelion_BE.domain.application.enums.PassStatus;
+import jakarta.persistence.LockModeType;
 import com.likelion.likelion_BE.domain.application.enums.SubmitStatus;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.jpa.repository.*;
 import org.springframework.data.repository.query.Param;
 
@@ -59,4 +64,11 @@ public interface ApplicationRepository extends JpaRepository<Application, Long> 
     @Query("SELECT a FROM Application a WHERE a.id = :id")
     Optional<Application> findByIdForUpdate(@Param("id") Long id);
 
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT a FROM Application a WHERE a.userId = :userId AND a.recruitment.id = :recruitmentId")
+    Optional<Application> findByUserIdAndRecruitmentIdForUpdate(
+            @Param("userId") Long userId,
+            @Param("recruitmentId") Long recruitmentId
+    );
 }

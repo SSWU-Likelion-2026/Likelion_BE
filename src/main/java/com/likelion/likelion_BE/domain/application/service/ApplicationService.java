@@ -1,6 +1,7 @@
 package com.likelion.likelion_BE.domain.application.service;
 
 import com.likelion.likelion_BE.common.exception.CustomException;
+import com.likelion.likelion_BE.common.s3.S3Uploader;
 import com.likelion.likelion_BE.domain.application.dto.request.ApplicationSaveRequest;
 import com.likelion.likelion_BE.domain.application.dto.response.CurrentQuestionsResponse;
 import com.likelion.likelion_BE.domain.application.dto.response.MyApplicationResponse;
@@ -8,19 +9,23 @@ import com.likelion.likelion_BE.domain.application.entity.Application;
 import com.likelion.likelion_BE.domain.application.entity.ApplicationAnswer;
 import com.likelion.likelion_BE.domain.application.enums.SubmitStatus;
 import com.likelion.likelion_BE.domain.application.exception.ApplicationErrorCode;
-import com.likelion.likelion_BE.domain.application.repository.ApplicationAnswerRepository;
 import com.likelion.likelion_BE.domain.application.repository.ApplicationRepository;
 import com.likelion.likelion_BE.domain.recruit.entity.Recruitment;
 import com.likelion.likelion_BE.domain.recruit.entity.RecruitmentPart;
 import com.likelion.likelion_BE.domain.recruit.entity.RecruitmentQuestion;
+import com.likelion.likelion_BE.domain.recruit.enums.QuestionType;
 import com.likelion.likelion_BE.domain.recruit.enums.RecruitmentStatus;
 import com.likelion.likelion_BE.domain.recruit.exception.RecruitmentErrorCode;
 import com.likelion.likelion_BE.domain.recruit.repository.RecruitmentPartRepository;
 import com.likelion.likelion_BE.domain.recruit.repository.RecruitmentQuestionRepository;
 import com.likelion.likelion_BE.domain.recruit.repository.RecruitmentRepository;
+import com.likelion.likelion_BE.domain.user.entity.User;
+import com.likelion.likelion_BE.domain.user.exception.AuthErrorCode;
+import com.likelion.likelion_BE.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -36,6 +41,8 @@ public class ApplicationService {
     private final RecruitmentRepository recruitmentRepository;
     private final RecruitmentPartRepository recruitmentPartRepository;
     private final RecruitmentQuestionRepository recruitmentQuestionRepository;
+    private final S3Uploader s3Uploader;
+    private final UserRepository userRepository;
 
     // 현재 진행 중인 모집 공고 질문 목록 조회
     public CurrentQuestionsResponse getCurrentQuestions() {
@@ -130,7 +137,7 @@ public class ApplicationService {
         RecruitmentPart part = getPart(recruitment, request.partId());
 
         // 기존 지원서 조회 또는 새로 생성
-        Application application = applicationRepository.findByUserIdAndRecruitmentId(userId, recruitment.getId())
+        Application application = applicationRepository.findByUserIdAndRecruitmentIdForUpdate(userId, recruitment.getId())
                 .orElseGet(() -> applicationRepository.save(
                         Application.createApplication(recruitment, part, userId)
                 ));
@@ -150,6 +157,22 @@ public class ApplicationService {
 
         return application.getId();
     }
+
+    public String uploadApplicationFile(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new CustomException(ApplicationErrorCode.INVALID_FILE);
+        }
+
+        // 2. S3 업로드 수행
+        String fileUrl = s3Uploader.upload(file, "applications");
+
+        if (fileUrl == null) {
+            throw new CustomException(ApplicationErrorCode.INVALID_FILE);
+        }
+
+        return fileUrl;
+    }
+
 
     /**
      * 헬퍼 메서드 모음
@@ -241,7 +264,10 @@ public class ApplicationService {
             }
 
             // 2) 최대 글자 수를 초과한 경우
-            if (question.getMaxLength() != null && userContent.length() > question.getMaxLength()) {
+            boolean isTextType = question.getQuestionType() == QuestionType.LONG_ANSWER
+                    || question.getQuestionType() == QuestionType.SHORT_ANSWER;
+
+            if (isTextType && question.getMaxLength() != null && userContent.length() > question.getMaxLength()) {
                 throw new CustomException(ApplicationErrorCode.ANSWER_LENGTH_EXCEEDED);
             }
         }
@@ -250,10 +276,14 @@ public class ApplicationService {
     public MyApplicationResponse getMyApplication(Long userId) {
         Recruitment recruitment = getCurrentRecruitment();
 
-        // 💡 해당 유저가 현재 기수에 작성한 지원서 조회
+        // 해당 유저가 현재 기수에 작성한 지원서 조회
         Application application = applicationRepository.findByUserIdAndRecruitmentId(userId, recruitment.getId())
                 .orElseThrow(() -> new CustomException(ApplicationErrorCode.APPLICATION_NOT_FOUND));
 
-        return MyApplicationResponse.from(application);
+        // 유저 정보 조회
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
+
+        return MyApplicationResponse.from(application, user);
     }
 }
