@@ -19,7 +19,7 @@ public class RecruitmentController {
     private final RecruitmentService recruitmentService;
 
     @Operation(summary = "랜딩페이지 모집 정보 조회", description = "현재 모집 공고 일정, 파트 목록, FAQ 정보를 한 번에 조회합니다.")
-    @GetMapping("/recruitments/landing")
+    @GetMapping("/current")
     public ApiResponse<LandingPageResponse> getLandingPageInfo() {
         LandingPageResponse response = recruitmentService.getLandingPageInfo();
         return ApiResponse.onSuccess(response);
