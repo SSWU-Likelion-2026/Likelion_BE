@@ -49,7 +49,7 @@ public class SecurityConfig {
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**"
                         ).permitAll()
-                        .requestMatchers("/api/v1/admin/**").hasRole("MANAGER")
+                        .requestMatchers("/api/v1/admin/**").hasAuthority("MANAGER")
                         .requestMatchers(HttpMethod.GET, "/api/v1/projects/**").permitAll()
 
                         // 1. 세션 및 세션 댓글 'GET(조회)' 요청은 누구나 허용
