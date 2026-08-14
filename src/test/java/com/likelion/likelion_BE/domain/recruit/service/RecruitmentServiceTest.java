@@ -1,8 +1,10 @@
 package com.likelion.likelion_BE.domain.recruit.service;
 
+import com.likelion.likelion_BE.domain.faq.repository.FaqRepository;
 import com.likelion.likelion_BE.domain.recruit.dto.response.CurrentRecruitmentResponse;
 import com.likelion.likelion_BE.domain.recruit.entity.Recruitment;
 import com.likelion.likelion_BE.domain.recruit.enums.RecruitmentStatus;
+import com.likelion.likelion_BE.domain.recruit.repository.RecruitmentPartRepository;
 import com.likelion.likelion_BE.domain.recruit.repository.RecruitmentRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -30,13 +32,23 @@ class RecruitmentServiceTest {
     @Mock
     private RecruitmentRepository recruitmentRepository;
 
+    @Mock
+    private RecruitmentPartRepository recruitmentPartRepository;
+
+    @Mock
+    private FaqRepository faqRepository;
+
     private RecruitmentService recruitmentService;
 
     @BeforeEach
     void setUp() {
         Clock clock = Clock.fixed(Instant.parse("2026-08-07T01:00:00Z"), SEOUL);
-        recruitmentService = new RecruitmentService(recruitmentRepository, clock);
-    }
+        recruitmentService = new RecruitmentService(
+                recruitmentRepository,
+                clock,
+                faqRepository,
+                recruitmentPartRepository
+        );    }
 
     @Test
     void 지원기간이면_DDay와_지원하기를_반환한다() {
