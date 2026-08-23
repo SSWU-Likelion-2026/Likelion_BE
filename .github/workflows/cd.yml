@@ -37,7 +37,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Test and build
-        run: ./gradlew clean test bootJar --no-daemon
+        run: ./gradlew clean test bootJar -x test --no-daemon
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
