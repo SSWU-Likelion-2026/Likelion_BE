@@ -49,7 +49,8 @@ public class SecurityConfig {
                                 "/api/v1/home/**",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
-                                "/api/v1/recruitments/**"
+                                "/api/v1/recruitments/**",
+                                "/actuator/health"
                         ).permitAll()
 
                         // GET 전용 읽기 허용 API
