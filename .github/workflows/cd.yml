@@ -1,0 +1,121 @@
+name: Backend CD
+
+on:
+  push:
+    branches: ["develop"]
+
+concurrency:
+  group: likelion-sswu-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: development
+
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+      EC2_INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
+      IMAGE_TAG: ${{ github.sha }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+
+      - name: Grant Gradle permission
+        run: chmod +x gradlew
+
+      - name: Test and build
+        run: ./gradlew clean bootJar -x test --no-daemon
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push Docker image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          docker build \
+            -t "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" \
+            .
+
+          docker push \
+            "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+
+      - name: Deploy to EC2
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          PARAMETERS=$(jq -n \
+            --arg image_tag "$IMAGE_TAG" \
+            --arg region "$AWS_REGION" \
+            --arg registry "$ECR_REGISTRY" \
+            '{
+              commands: [
+                "set -eu",
+                "cd /home/ubuntu/project",
+                ("sed -i \"s/^IMAGE_TAG=.*/IMAGE_TAG=" + $image_tag + "/\" .env"),
+                ("grep -q \"^IMAGE_TAG=" + $image_tag + "$\" .env"),
+                ("aws ecr get-login-password --region " + $region + " | docker login --username AWS --password-stdin " + $registry),
+                "docker compose pull backend",
+                "docker compose up -d --no-deps backend",
+                "for i in $(seq 1 24); do if curl -fsS http://127.0.0.1:8080/actuator/health; then exit 0; fi; sleep 5; done; docker compose logs --tail=200 backend; exit 1"
+              ]
+            }')
+
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "$EC2_INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --parameters "$PARAMETERS" \
+            --region "$AWS_REGION" \
+            --query "Command.CommandId" \
+            --output text)
+
+          echo "SSM Command ID: $COMMAND_ID"
+          echo "Waiting for SSM command to finish..."
+          
+          STATUS="InProgress"
+          for i in $(seq 1 30); do
+            RESULT=$(aws ssm get-command-invocation \
+              --command-id "$COMMAND_ID" \
+              --instance-id "$EC2_INSTANCE_ID" \
+              --region "$AWS_REGION" \
+              --output json 2>/dev/null || true)
+          
+            STATUS=$(echo "$RESULT" | jq -r '.Status // "InProgress"')
+          
+            if [ "$STATUS" = "Success" ] || [ "$STATUS" = "Failed" ] || [ "$STATUS" = "Cancelled" ] || [ "$STATUS" = "TimedOut" ]; then
+              break
+            fi
+            sleep 10
+          done
+          
+          echo "Deployment status: $STATUS"
+                    echo "----- stdout -----"
+                    echo "$RESULT" | jq -r '.StandardOutputContent'
+                    echo "----- stderr -----"
+                    echo "$RESULT" | jq -r '.StandardErrorContent'
+
+                    if [ "$STATUS" != "Success" ]; then
+                      echo "Deployment failed with status: $STATUS"
+                      exit 1
+                    fi
