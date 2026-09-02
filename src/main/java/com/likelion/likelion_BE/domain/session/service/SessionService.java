@@ -27,8 +27,8 @@ public class SessionService {
     }
 
     // 세션 상세 조회
-    public SessionDetailResponse getSessionDetail(Long sessionId) {
-        Session session = sessionRepository.findByIdWithLearningTopics(sessionId)
+    public SessionDetailResponse getSessionDetail(Integer term, Part part, Integer weekNumber) {
+        Session session = sessionRepository.findByTermAndPartAndWeekNumberWithLearningTopics(term, part, weekNumber)
                 .orElseThrow(() -> new CustomException(SessionErrorCode.SESSION_NOT_FOUND));
 
         return SessionDetailResponse.from(session);
