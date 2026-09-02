@@ -37,12 +37,9 @@ public class SessionController {
     }
 
     // 세션 상세 조회
-    @Operation(summary = "세션 상세 조회", description = "세션 ID(소실 복구용) 및 기수, 파트, 주차 정보를 통해 세션 상세 정보를 조회합니다.")
-    @GetMapping("/{sessionId}")
+    @Operation(summary = "세션 상세 조회", description = "기수, 파트, 주차 정보를 통해 세션 상세 정보를 조회합니다.")
+    @GetMapping
     public ResponseEntity<ApiResponse<SessionDetailResponse>> getSessionDetail(
-            @Parameter(description = "세션 ID (소실 복구용)", example = "1", required = true)
-            @PathVariable Long sessionId,
-
             @Parameter(description = "기수", example = "14", required = true)
             @RequestParam Integer term,
 
@@ -52,7 +49,7 @@ public class SessionController {
             @Parameter(description = "주차 번호", example = "1", required = true)
             @RequestParam Integer weekNumber
     ) {
-        SessionDetailResponse response = sessionService.getSessionDetail(sessionId, term, part, weekNumber);
+        SessionDetailResponse response = sessionService.getSessionDetail(term, part, weekNumber);
         return ResponseEntity.ok(ApiResponse.onSuccess(response));
     }
 }
