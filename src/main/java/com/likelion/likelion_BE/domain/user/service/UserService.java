@@ -20,6 +20,7 @@ import com.likelion.likelion_BE.domain.user.repository.RefreshTokenRepository;
 import com.likelion.likelion_BE.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -93,6 +94,10 @@ public class UserService {
     public UserResponse login(LoginRequest request) {
         User user = userRepository.findByEmail(request.email().trim().toLowerCase())
                 .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_CREDENTIALS));
+
+        if (!user.hasPassword()) {
+            throw new CustomException(AuthErrorCode.SOCIAL_LOGIN_REQUIRED);
+        }
 
         if (!passwordEncoder.matches(request.password(), user.getPassword())) {
             throw new CustomException(AuthErrorCode.INVALID_CREDENTIALS);
@@ -200,6 +205,10 @@ public class UserService {
         String name = (String) payload.get("name");
         String googleImageUrl = (String) payload.get("picture");
 
+        /*
+         * emailVerified 검증은 이메일 기반 자동 연동의 전제 조건이다.
+         * 구글이 소유권을 확인해준 이메일이어야만 기존 계정에 연동할 수 있다.
+         */
         if (providerId == null
                 || email == null
                 || !Boolean.TRUE.equals(payload.getEmailVerified())) {
@@ -210,20 +219,19 @@ public class UserService {
         // 중복 계정 생성 및 JWT subject 불일치를 막기 위함.
         email = email.trim().toLowerCase();
 
-        boolean alreadyExists = userRepository.findByProviderAndProviderId(Provider.GOOGLE, providerId)
-                .isPresent();
+        /*
+         * 구글 식별자로도, 이메일로도 매칭되는 계정이 없을 때만 진짜 신규 가입이다.
+         * 기존 계정 연동인 경우에는 프로필 이미지를 덮어쓰지 않는다.
+         */
+        boolean needsNewAccount =
+                userRepository.findByProviderId(providerId).isEmpty()
+                        && !userRepository.existsByEmail(email);
 
         String profileImageUrl = null;
-        if (!alreadyExists && googleImageUrl != null) {
-            // DB 트랜잭션 밖에서 수행: HTTP 다운로드(최대 5초) + S3 업로드가
-            // DB 커넥션을 붙잡지 않도록 분리.
-            boolean localEmailTaken = userRepository.existsByEmail(email);
-            if (!localEmailTaken) {
-                profileImageUrl = s3Service.uploadFromUrl(googleImageUrl);
-            }
+        if (needsNewAccount && googleImageUrl != null) {
+            profileImageUrl = s3Service.uploadFromUrl(googleImageUrl);
         }
 
-        // DB 작업은 별도 트랜잭션 메서드로 위임 (self 프록시를 통해 호출)
         return self.processGoogleLogin(providerId, email, name, profileImageUrl);
     }
 
@@ -234,32 +242,46 @@ public class UserService {
             String name,
             String profileImageUrl
     ) {
-        User user = userRepository.findByProviderAndProviderId(
-                Provider.GOOGLE,
-                providerId
-        ).orElse(null);
+        // 1) 이미 구글과 연동된 계정 -> 그대로 로그인
+        User user = userRepository.findByProviderId(providerId).orElse(null);
 
         boolean isNewUser = false;
 
         if (user == null) {
-            /*
-             * 로컬 계정과 Google 계정을 이메일만으로 자동 연결하지 않는다.
-             * 동일 이메일의 LOCAL 계정이 있다면 중복으로 처리한다.
-             */
-            if (userRepository.existsByEmail(email)) {
-                throw new CustomException(AuthErrorCode.DUPLICATE_EMAIL);
+            User existing = userRepository.findByEmail(email).orElse(null);
+
+            if (existing != null) {
+                /*
+                 * 2) 동일 이메일의 기존 계정이 있으면 구글 계정을 연동하고
+                 *    기존 계정으로 로그인시킨다. user_id가 유지되므로
+                 *    다른 도메인이 참조하는 FK도 그대로 살아있다.
+                 */
+                if (existing.hasGoogleLinked()) {
+                    // 이메일은 같은데 구글 sub이 다른 비정상 케이스
+                    throw new CustomException(AuthErrorCode.ALREADY_LINKED_GOOGLE_ACCOUNT);
+                }
+
+                existing.linkGoogleAccount(providerId);
+                user = existing;
+
+            } else {
+                // 3) 완전 신규 -> 소셜 계정 생성
+                try {
+                    user = userRepository.save(
+                            User.createSocialUser(
+                                    email,
+                                    name == null || name.isBlank() ? "사용자" : name,
+                                    providerId,
+                                    profileImageUrl
+                            )
+                    );
+                } catch (DataIntegrityViolationException e) {
+                    // 동시 요청으로 그 사이에 동일 이메일 계정이 생성된 경우
+                    throw new CustomException(AuthErrorCode.DUPLICATE_EMAIL);
+                }
+
+                isNewUser = true;
             }
-
-            user = userRepository.save(
-                    User.createSocialUser(
-                            email,
-                            name == null || name.isBlank() ? "사용자" : name,
-                            providerId,
-                            profileImageUrl
-                    )
-            );
-
-            isNewUser = true;
         }
 
         TokenRefreshResponse tokenResponse = issueTokens(user);

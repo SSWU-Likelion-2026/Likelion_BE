@@ -118,4 +118,16 @@ public class User extends BaseEntity {
     public void updateProfileImageUrl(String profileImageUrl) {
         this.profileImageUrl = profileImageUrl;
     }
+
+    public void linkGoogleAccount(String providerId) {
+        this.providerId = providerId;
+    }
+
+    public boolean hasGoogleLinked() {
+        return this.providerId != null;
+    }
+
+    public boolean hasPassword() {
+        return this.password != null && !this.password.isBlank();
+    }
 }
