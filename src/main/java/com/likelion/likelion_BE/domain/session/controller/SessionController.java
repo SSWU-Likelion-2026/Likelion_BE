@@ -38,7 +38,7 @@ public class SessionController {
 
     // 세션 상세 조회
     @Operation(summary = "세션 상세 조회", description = "기수, 파트, 주차 정보를 통해 세션 상세 정보를 조회합니다.")
-    @GetMapping
+    @GetMapping("/detail")
     public ResponseEntity<ApiResponse<SessionDetailResponse>> getSessionDetail(
             @Parameter(description = "기수", example = "14", required = true)
             @RequestParam Integer term,
