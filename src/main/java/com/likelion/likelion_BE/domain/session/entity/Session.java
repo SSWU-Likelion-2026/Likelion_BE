@@ -13,7 +13,15 @@ import java.util.List;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder(access = AccessLevel.PRIVATE)
-@Table(name = "session")
+@Table(
+        name = "session",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_session_term_part_week",
+                        columnNames = {"term", "part", "week_number"}
+                )
+        }
+)
 public class Session extends BaseEntity {
 
     @Id
