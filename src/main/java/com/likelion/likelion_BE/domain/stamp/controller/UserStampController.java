@@ -14,7 +14,6 @@ import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -41,10 +40,14 @@ public class UserStampController {
     public ApiResponse<StampAuthResponse> authenticateMission(
             @AuthenticationPrincipal UserDetails userDetails,
             @PathVariable Long missionId,
-            @RequestPart("image") MultipartFile image,
             @Valid @ModelAttribute StampAuthRequest request
     ) {
-        StampAuthResponse response = userStampService.authenticateMission(userDetails.getUsername(), missionId, image, request);
+        StampAuthResponse response = userStampService.authenticateMission(
+                userDetails.getUsername(),
+                missionId,
+                request.image(),
+                request
+        );
         return ApiResponse.onSuccess(response);
     }
 
