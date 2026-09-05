@@ -6,6 +6,7 @@ import com.likelion.likelion_BE.domain.recruit.entity.RecruitmentPart;
 import com.likelion.likelion_BE.domain.recruit.enums.RecruitmentStatus;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 
 public record LandingPageResponse(
@@ -19,6 +20,15 @@ public record LandingPageResponse(
         List<FaqInfo> faqInfos = faqs.stream().map(FaqInfo::from).toList();
 
         return new LandingPageResponse(recruitmentInfo, partInfos, faqInfos);
+    }
+
+    // 공고가 없을 때 빈 응답을 만들어주는 메서드 추가
+    public static LandingPageResponse empty() {
+        return new LandingPageResponse(
+                null,
+                Collections.emptyList(),
+                Collections.emptyList()
+        );
     }
 
     public record RecruitmentInfo(

@@ -39,7 +39,10 @@ public class UserStampService {
     private static final int DEFAULT_TERM = 14;
 
     // 1. 스탬프 미션 목록 조회
-    public List<MissionListResponse> getMissions(Long userId, Integer term) {
+    public List<MissionListResponse> getMissions(String email, Integer term) {
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
 
         // term이 null이면 DB의 가장 최신 기수 조회
         int targetTerm = (term != null)
@@ -49,7 +52,7 @@ public class UserStampService {
         List<Mission> missions = missionRepository.findAllByTerm(targetTerm);
 
         // 현재 유저가 완료한 missionId 집합
-        Set<Long> completedMissionIds = userStampRepository.findAllByUserId(userId).stream()
+        Set<Long> completedMissionIds = userStampRepository.findAllByUserId(user.getId()).stream()
                 .map(stamp -> stamp.getMission().getId())
                 .collect(Collectors.toSet());
 
@@ -63,10 +66,10 @@ public class UserStampService {
 
     // 2. 스탬프 미션 인증
     @Transactional
-    public StampAuthResponse authenticateMission(Long userId, Long missionId, MultipartFile image, StampAuthRequest request) {
+    public StampAuthResponse authenticateMission(String email, Long missionId, MultipartFile image, StampAuthRequest request) {
 
         // 유저 및 미션 존재 확인
-        User user = userRepository.findById(userId)
+        User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
 
         Mission mission = missionRepository.findById(missionId)
@@ -88,7 +91,7 @@ public class UserStampService {
         }
 
         // [검증 3] 이미 도장을 찍었는지 중복 인증 확인
-        if (userStampRepository.existsByUserIdAndMissionId(userId, missionId)) {
+        if (userStampRepository.existsByUserIdAndMissionId(user.getId(), missionId)) {
             throw new CustomException(StampErrorCode.MISSION_ALREADY_COMPLETED);
         }
 
@@ -123,14 +126,14 @@ public class UserStampService {
     }
 
     // 3. 마이 스탬프 조회
-    public MyStampResponse getMyStamps(Long userId) {
+    public MyStampResponse getMyStamps(String email) {
 
         // 유저 존재 확인
-        User user = userRepository.findById(userId)
+        User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
 
         // 유저가 획득한 전체 스탬프 목록 조회
-        List<UserStamp> userStamps = userStampRepository.findAllByUserId(userId);
+        List<UserStamp> userStamps = userStampRepository.findAllByUserId(user.getId());
 
         return MyStampResponse.of(user.getName(), userStamps);
     }

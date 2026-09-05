@@ -66,6 +66,11 @@ public class RecruitmentService {
                 .orElseGet(() -> recruitmentRepository.findFirstByOrderByCreatedAtDesc()
                         .orElseThrow(() -> new CustomException(RecruitmentErrorCode.RECRUITMENT_NOT_FOUND)));
 
+        // 공고가 아예 존재하지 않는 극초기 상태인 경우
+        if (recruitment == null) {
+            return LandingPageResponse.empty();
+        }
+
         // 2. 해당 모집 공고의 파트 목록 조회
         List<RecruitmentPart> parts = recruitmentPartRepository.findAllByRecruitmentId(recruitment.getId());
 
