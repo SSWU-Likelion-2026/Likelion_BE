@@ -24,10 +24,10 @@ public record ProjectDetailResponse(
         String description,
         Hackathon hackathon,
 
-        @JsonFormat(pattern = "yyyy.MM")
+        @JsonFormat(pattern = "yyyy-MM")
         YearMonth startMonth,
 
-        @JsonFormat(pattern = "yyyy.MM")
+        @JsonFormat(pattern = "yyyy-MM")
         YearMonth endMonth,
 
         List<String> slideUrls,
