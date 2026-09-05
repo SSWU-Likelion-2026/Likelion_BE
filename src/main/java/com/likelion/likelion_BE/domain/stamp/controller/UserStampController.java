@@ -45,7 +45,7 @@ public class UserStampController {
         StampAuthResponse response = userStampService.authenticateMission(
                 userDetails.getUsername(),
                 missionId,
-                request.image,
+                request.image(),
                 request
         );
         return ApiResponse.onSuccess(response);
