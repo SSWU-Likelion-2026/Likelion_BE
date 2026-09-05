@@ -1,6 +1,7 @@
 package com.likelion.likelion_BE.domain.user.service;
 
 import com.likelion.likelion_BE.config.AppProperties;
+import com.likelion.likelion_BE.domain.project.enums.ImageFolder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -74,6 +75,38 @@ public class S3Service {
         // 저장할 때는 클라이언트가 적은 값(declaredContentType)이 아니라
         // 우리가 실제로 확인한 값(detectedContentType)을 사용
         String key = buildKey(resolveExtension(detectedContentType));
+
+        s3Client.putObject(
+                PutObjectRequest.builder()
+                        .bucket(props.getS3().getBucket())
+                        .key(key)
+                        .contentType(detectedContentType)
+                        .build(),
+                RequestBody.fromBytes(bytes)
+        );
+
+        return toPublicUrl(key);
+    }
+
+    // 프로젝트 로고 및 장표 업로드
+    public String upload(MultipartFile file, ImageFolder folder) {
+        String declaredContentType = file.getContentType();
+        if (declaredContentType == null
+                || !ALLOWED_CONTENT_TYPES.contains(declaredContentType.toLowerCase(Locale.ROOT))) {
+            throw new IllegalArgumentException("허용되지 않은 이미지 형식입니다.");
+        }
+
+        byte[] bytes;
+        try {
+            bytes = file.getBytes();
+        } catch (IOException e) {
+            throw new IllegalStateException("이미지 업로드 중 오류가 발생했습니다.", e);
+        }
+
+        String detectedContentType = detectImageContentType(bytes)
+                .orElseThrow(() -> new IllegalArgumentException("허용되지 않은 이미지 형식입니다."));
+
+        String key = buildKey(resolveExtension(detectedContentType), folder);
 
         s3Client.putObject(
                 PutObjectRequest.builder()
@@ -222,6 +255,22 @@ public class S3Service {
         }
         String normalized = prefix.endsWith("/") ? prefix : prefix + "/";
         return normalized + UUID.randomUUID() + extension;
+    }
+
+    private String buildKey(String extension, ImageFolder folder) {
+        String prefix = props.getS3().getRootPrefix();
+        StringBuilder keyBuilder = new StringBuilder();
+
+        if (prefix != null && !prefix.isBlank()) {
+            keyBuilder.append(prefix.endsWith("/") ? prefix : prefix + "/");
+        }
+
+        if (folder != null) {
+            keyBuilder.append(folder.getPath()).append("/");
+        }
+
+        keyBuilder.append(UUID.randomUUID()).append(extension);
+        return keyBuilder.toString();
     }
 
     private String resolveExtension(String contentType) {
