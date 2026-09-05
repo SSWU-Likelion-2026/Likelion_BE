@@ -1,6 +1,5 @@
 package com.likelion.likelion_BE.domain.recruit.service;
 
-import com.likelion.likelion_BE.common.exception.CustomException;
 import com.likelion.likelion_BE.domain.faq.entity.Faq;
 import com.likelion.likelion_BE.domain.faq.repository.FaqRepository;
 import com.likelion.likelion_BE.domain.recruit.dto.response.CurrentRecruitmentResponse;
@@ -8,7 +7,6 @@ import com.likelion.likelion_BE.domain.recruit.dto.response.LandingPageResponse;
 import com.likelion.likelion_BE.domain.recruit.entity.Recruitment;
 import com.likelion.likelion_BE.domain.recruit.entity.RecruitmentPart;
 import com.likelion.likelion_BE.domain.recruit.enums.RecruitmentStatus;
-import com.likelion.likelion_BE.domain.recruit.exception.RecruitmentErrorCode;
 import com.likelion.likelion_BE.domain.recruit.repository.RecruitmentPartRepository;
 import com.likelion.likelion_BE.domain.recruit.repository.RecruitmentRepository;
 import lombok.RequiredArgsConstructor;
@@ -63,10 +61,9 @@ public class RecruitmentService {
     public LandingPageResponse getLandingPageInfo() {
         // 1. 현재 OPEN 상태인 모집 공고 조회 (없으면 최신 공고)
         Recruitment recruitment = recruitmentRepository.findFirstByStatusOrderByCreatedAtDesc(RecruitmentStatus.OPEN)
-                .orElseGet(() -> recruitmentRepository.findFirstByOrderByCreatedAtDesc()
-                        .orElseThrow(() -> new CustomException(RecruitmentErrorCode.RECRUITMENT_NOT_FOUND)));
-
+                .orElseGet(() -> recruitmentRepository.findFirstByOrderByCreatedAtDesc().orElse(null));
         // 공고가 아예 존재하지 않는 극초기 상태인 경우
+
         if (recruitment == null) {
             return LandingPageResponse.empty();
         }
