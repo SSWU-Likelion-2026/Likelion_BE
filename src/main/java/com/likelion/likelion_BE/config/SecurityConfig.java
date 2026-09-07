@@ -62,6 +62,10 @@ public class SecurityConfig {
                         // GET 전용 읽기 허용 API
                         .requestMatchers(HttpMethod.GET, "/api/v1/sessions/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/projects/**").permitAll()
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/v1/member-profiles",
+                                "/api/v1/member-profiles/{profileId:[0-9]+}"
+                        ).permitAll()
 
                         // 회원 기능 API
                         .requestMatchers(
