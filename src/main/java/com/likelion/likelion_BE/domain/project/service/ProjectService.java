@@ -16,6 +16,7 @@ import com.likelion.likelion_BE.domain.project.repository.ProjectRepository;
 import com.likelion.likelion_BE.domain.project.repository.TechStackRepository;
 import com.likelion.likelion_BE.domain.user.entity.User;
 import com.likelion.likelion_BE.domain.user.enums.Role;
+import com.likelion.likelion_BE.domain.user.exception.AuthErrorCode;
 import com.likelion.likelion_BE.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -41,7 +42,7 @@ public class ProjectService {
     public ProjectCreateUpdateResponse createProject(String email, ProjectCreateUpdateRequest request) {
         // 1. 유저 조회 및 권한 검증
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new CustomException(ProjectErrorCode.PROJECT_FORBIDDEN_CREATE));
+                .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
 
         validateAdminRole(user.getRole(), ProjectErrorCode.PROJECT_FORBIDDEN_CREATE);
 
@@ -91,8 +92,7 @@ public class ProjectService {
     public ProjectCreateUpdateResponse updateProject(Long projectId, String email, ProjectCreateUpdateRequest request) {
         // 1. 유저 조회 및 권한 검증 (LEADER, MANAGER만 수정 가능)
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new CustomException(ProjectErrorCode.PROJECT_FORBIDDEN_UPDATE));
-
+                .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
         validateAdminRole(user.getRole(), ProjectErrorCode.PROJECT_FORBIDDEN_UPDATE);
 
         // 2. 프로젝트 존재 여부 검증
@@ -141,7 +141,7 @@ public class ProjectService {
     public void deleteProject(Long projectId, String email) {
         // 1. 유저 조회 및 권한 검증 (LEADER, MANAGER만 삭제 가능)
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new CustomException(ProjectErrorCode.PROJECT_FORBIDDEN_DELETE));
+                .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
 
         validateAdminRole(user.getRole(), ProjectErrorCode.PROJECT_FORBIDDEN_DELETE);
 
