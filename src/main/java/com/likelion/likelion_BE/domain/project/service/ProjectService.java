@@ -40,7 +40,7 @@ public class ProjectService {
 
     @Transactional
     public ProjectCreateUpdateResponse createProject(String email, ProjectCreateUpdateRequest request) {
-        // 1. 유저 조회 및 권한 검증
+        // 1. 유저 조회 및 등록 권한 검증 (LEADER, MANAGER만 생성 가능)
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
 
@@ -68,9 +68,9 @@ public class ProjectService {
                 .map(ProjectTechStack::createProjectTechStack)
                 .toList();
 
-        // 6. Project Aggregate 루트 생성 및 유저 ID 연결
+        // 6. Project Aggregate 루트 생성 및 User 엔티티 연결
         Project project = Project.createProject(
-                user.getId(),
+                user,
                 request.term(),
                 request.hackathon(),
                 request.title(),
@@ -90,22 +90,24 @@ public class ProjectService {
 
     @Transactional
     public ProjectCreateUpdateResponse updateProject(Long projectId, String email, ProjectCreateUpdateRequest request) {
-        // 1. 유저 조회 및 권한 검증 (LEADER, MANAGER만 수정 가능)
+        // 1. 유저 조회
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
-        validateAdminRole(user.getRole(), ProjectErrorCode.PROJECT_FORBIDDEN_UPDATE);
 
         // 2. 프로젝트 존재 여부 검증
         Project project = projectRepository.findByIdAndDeletedAtIsNull(projectId)
                 .orElseThrow(() -> new CustomException(ProjectErrorCode.PROJECT_NOT_FOUND));
 
-        // 3. 기술 스택 존재 유무 확인
+        // 3. LEADER/MANAGER 자격을 가진 작성자 본인만 수정 가능하도록 검증
+        project.validateOwnerAndAdminRole(user, ProjectErrorCode.PROJECT_FORBIDDEN_UPDATE);
+
+        // 4. 기술 스택 존재 유무 확인
         List<TechStack> techStacks = techStackRepository.findAllByIdIn(request.techStackIds());
         if (techStacks.size() != request.techStackIds().size()) {
             throw new CustomException(ProjectErrorCode.TECH_STACK_NOT_FOUND);
         }
 
-        // 4. 연관 엔티티 재생성
+        // 5. 연관 엔티티 재생성
         AtomicInteger sequence = new AtomicInteger(1);
         List<ProjectSlide> newSlides = request.slideUrls().stream()
                 .map(url -> ProjectSlide.createSlide(url, sequence.getAndIncrement()))
@@ -119,7 +121,7 @@ public class ProjectService {
                 .map(ProjectTechStack::createProjectTechStack)
                 .toList();
 
-        // 5. 엔티티 수정 (Dirty Checking)
+        // 6. 엔티티 수정 (Dirty Checking)
         project.updateProject(
                 request.term(),
                 request.hackathon(),
@@ -139,17 +141,18 @@ public class ProjectService {
 
     @Transactional
     public void deleteProject(Long projectId, String email) {
-        // 1. 유저 조회 및 권한 검증 (LEADER, MANAGER만 삭제 가능)
+        // 1. 유저 조회
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
-
-        validateAdminRole(user.getRole(), ProjectErrorCode.PROJECT_FORBIDDEN_DELETE);
 
         // 2. 프로젝트 존재 여부 검증
         Project project = projectRepository.findByIdAndDeletedAtIsNull(projectId)
                 .orElseThrow(() -> new CustomException(ProjectErrorCode.PROJECT_NOT_FOUND));
 
-        // 3. 삭제 처리
+        // 3. LEADER/MANAGER 자격을 가진 작성자 본인만 삭제 가능하도록 검증
+        project.validateOwnerAndAdminRole(user, ProjectErrorCode.PROJECT_FORBIDDEN_DELETE);
+
+        // 4. 삭제 처리
         project.delete();
     }
 
