@@ -196,6 +196,18 @@ public class Project extends BaseEntity {
         }
     }
 
+    /**
+     * 순서(sequenceNum)가 1번인 장표의 URL을 추출하여 썸네일로 반환.
+     * 등록된 장표가 없을 경우 logoUrl을 기본값으로 반환.
+     */
+    public String getThumbnailUrl() {
+        return this.slides.stream()
+                .filter(slide -> Integer.valueOf(1).equals(slide.getSequenceNum()))
+                .map(ProjectSlide::getImageUrl)
+                .findFirst()
+                .orElse(this.logoUrl);
+    }
+
     // 소프트 삭제
     public void delete() {
         this.deletedAt = LocalDateTime.now();

@@ -17,6 +17,8 @@ public interface ProjectRepository extends JpaRepository<Project, Long> {
     Page<Project> findAllByDeletedAtIsNull(Pageable pageable);
 
     // 기수별 목록 페이징 조회 (term이 null이면 전체 조회)
+    // 썸네일 조회 시 N+1 문제를 방지하기 위해 slides를 EntityGraph로 함께 조회
+    @EntityGraph(attributePaths = {"slides"})
     @Query("SELECT p FROM Project p " +
             "WHERE p.deletedAt IS NULL " +
             "AND (:term IS NULL OR p.term = :term)")

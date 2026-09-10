@@ -8,7 +8,8 @@ public record ProjectListResponse(
         Long id,
         String title,
         String summary,
-        String logoUrl
+        String logoUrl,
+        String thumbnailUrl
 ) {
     public static ProjectListResponse from(Project project) {
         return ProjectListResponse.builder()
@@ -16,6 +17,7 @@ public record ProjectListResponse(
                 .title(project.getTitle())
                 .summary(project.getSummary())
                 .logoUrl(project.getLogoUrl())
+                .thumbnailUrl(project.getThumbnailUrl())
                 .build();
     }
 }
