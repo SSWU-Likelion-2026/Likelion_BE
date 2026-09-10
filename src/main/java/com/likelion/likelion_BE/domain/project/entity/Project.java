@@ -4,6 +4,8 @@ import com.likelion.likelion_BE.common.entity.BaseEntity;
 import com.likelion.likelion_BE.common.exception.CustomException;
 import com.likelion.likelion_BE.domain.project.enums.Hackathon;
 import com.likelion.likelion_BE.domain.project.exception.ProjectErrorCode;
+import com.likelion.likelion_BE.domain.user.entity.User;
+import com.likelion.likelion_BE.domain.user.enums.Role;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -26,10 +28,9 @@ public class Project extends BaseEntity {
     @Column(name = "project_id")
     private Long id;
 
-    // TODO: User 엔티티 생기면 연결
-    // @ManyToOne ..
-    @Column(name = "user_id", nullable = false)
-    private Long userId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
 
     @Column(name = "term", nullable = false)
     private Integer term;
@@ -71,7 +72,6 @@ public class Project extends BaseEntity {
     @Builder.Default
     private List<ProjectTechStack> techStacks = new ArrayList<>();
 
-    // 컬렉션 캡슐화: 읽기 전용 뷰 반환
     public List<ProjectSlide> getSlides() {
         return Collections.unmodifiableList(slides);
     }
@@ -84,7 +84,6 @@ public class Project extends BaseEntity {
         return Collections.unmodifiableList(techStacks);
     }
 
-    // 연관관계 편의 메서드
     public void addSlide(ProjectSlide slide) {
         this.slides.add(slide);
         slide.assignProject(this);
@@ -100,9 +99,8 @@ public class Project extends BaseEntity {
         techStack.assignProject(this);
     }
 
-    // 정적 팩토리 메서드
     public static Project createProject(
-            Long userId,
+            User user,
             Integer term,
             Hackathon hackathon,
             String title,
@@ -118,7 +116,7 @@ public class Project extends BaseEntity {
         validateProjectPeriod(startMonth, endMonth);
 
         Project project = Project.builder()
-                .userId(userId)
+                .user(user)
                 .term(term)
                 .hackathon(hackathon)
                 .title(title)
@@ -183,18 +181,31 @@ public class Project extends BaseEntity {
         }
     }
 
-    // 소프트 삭제 (BaseEntity 메서드 사용)
+    // 작성자 본인 및 직책(LEADER/MANAGER) 검증 메서드
+    public void validateOwnerAndAdminRole(User requester, ProjectErrorCode errorCode) {
+        // 1. 작성자 본인 여부 확인
+        boolean isOwner = this.user.getId().equals(requester.getId());
+        if (!isOwner) {
+            throw new CustomException(errorCode);
+        }
+
+        // 2. LEADER 또는 MANAGER 직책 보유 여부 확인
+        Role role = requester.getRole();
+        if (role != Role.LEADER && role != Role.MANAGER) {
+            throw new CustomException(errorCode);
+        }
+    }
+
+    // 소프트 삭제
     public void delete() {
         this.deletedAt = LocalDateTime.now();
     }
 
     private static void validateProjectPeriod(LocalDate startMonth, LocalDate endMonth) {
-        // null일 때
         if (startMonth == null || endMonth == null) {
             throw new CustomException(ProjectErrorCode.PROJECT_PERIOD_REQUIRED);
         }
 
-        // 종료일이 시작일보다 빠를 때
         if (endMonth.isBefore(startMonth)) {
             throw new CustomException(ProjectErrorCode.INVALID_PROJECT_PERIOD);
         }
