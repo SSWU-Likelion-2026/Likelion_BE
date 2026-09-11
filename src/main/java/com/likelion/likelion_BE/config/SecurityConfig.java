@@ -95,7 +95,8 @@ public class SecurityConfig {
         // 허용할 프론트엔드 등록
         configuration.setAllowedOrigins(Arrays.asList(
                 "http://localhost:3000",
-                "https://sswulikelion.com"
+                "https://sswulikelion.com",
+                "https://www.sswulikelion.com"
         ));
 
         // 허용할 HTTP 메서드
