@@ -11,6 +11,7 @@ import com.likelion.likelion_BE.domain.memberprofile.enums.MemberType;
 import com.likelion.likelion_BE.domain.memberprofile.exception.MemberProfileErrorCode;
 import com.likelion.likelion_BE.domain.memberprofile.repository.MemberProfileRepository;
 import com.likelion.likelion_BE.domain.user.entity.User;
+import com.likelion.likelion_BE.domain.user.enums.Role;
 import com.likelion.likelion_BE.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -46,6 +47,7 @@ public class MemberProfileService {
     @Transactional
     public MemberProfileDetailResponse createMyProfile(Principal principal, MemberProfileCreateRequest request) {
         User user = getCurrentUser(principal);
+        validateProfileWritePermission(user);
         Long userId = user.getId();
         if (memberProfileRepository.existsByUserIdAndTerm(userId, request.term())) {
             throw new CustomException(MemberProfileErrorCode.MEMBER_PROFILE_ALREADY_EXISTS);
@@ -73,6 +75,7 @@ public class MemberProfileService {
             MemberProfileUpdateRequest request
     ) {
         User user = getCurrentUser(principal);
+        validateProfileWritePermission(user);
         MemberProfile profile = findMyProfile(user.getId(), term);
         profile.update(request);
         return MemberProfileDetailResponse.from(profile);
@@ -81,6 +84,7 @@ public class MemberProfileService {
     @Transactional
     public void deleteMyProfile(Principal principal, Integer term) {
         User user = getCurrentUser(principal);
+        validateProfileWritePermission(user);
         memberProfileRepository.delete(findMyProfile(user.getId(), term));
     }
 
@@ -100,6 +104,13 @@ public class MemberProfileService {
         }
         return userRepository.findByEmail(principal.getName())
                 .orElseThrow(() -> new CustomException(MemberProfileErrorCode.USER_NOT_FOUND));
+    }
+
+    private void validateProfileWritePermission(User user) {
+        Role role = user.getRole();
+        if (role != Role.MEMBER && role != Role.LEADER && role != Role.MANAGER) {
+            throw new CustomException(MemberProfileErrorCode.MEMBER_PROFILE_WRITE_FORBIDDEN);
+        }
     }
 
     private boolean isDuplicateProfileConstraint(DataIntegrityViolationException exception) {
