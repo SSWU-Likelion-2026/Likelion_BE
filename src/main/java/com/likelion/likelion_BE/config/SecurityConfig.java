@@ -72,7 +72,8 @@ public class SecurityConfig {
                                 "/api/v1/sessions/*/comments/**",
                                 "/api/v1/sessions/comments/**",
                                 "/api/v1/applications/**",
-                                "/api/v1/stamps/**"
+                                "/api/v1/stamps/**",
+                                "/api/v1/member-profiles/**"
                         ).hasAnyAuthority("MEMBER", "LEADER", "MANAGER")
 
                         // 관리자 전용 API
@@ -96,7 +97,8 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(Arrays.asList(
                 "http://localhost:3000",
                 "https://sswulikelion.com",
-                "https://www.sswulikelion.com"
+                "https://www.sswulikelion.com",
+                "https://api.sswulikelion.com"
         ));
 
         // 허용할 HTTP 메서드
