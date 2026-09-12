@@ -77,7 +77,7 @@ public class SecurityConfig {
                         ).hasAnyAuthority("MEMBER", "LEADER", "MANAGER")
 
                         // 관리자 전용 API
-                        .requestMatchers("/api/v1/admin/**").hasAnyAuthority("MANAGER", "LEADER")
+                        .requestMatchers("/api/v1/admin/**", "/api/auth/list").hasAnyAuthority("MANAGER", "LEADER")
 
                         // 기타 모든 요청은 인증 필요
                         .anyRequest().authenticated()

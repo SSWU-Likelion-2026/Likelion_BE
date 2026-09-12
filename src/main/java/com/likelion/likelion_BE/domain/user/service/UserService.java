@@ -5,10 +5,7 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.likelion.likelion_BE.common.exception.CustomException;
 import com.likelion.likelion_BE.config.jwt.JwtTokenProvider;
 import com.likelion.likelion_BE.domain.user.dto.request.*;
-import com.likelion.likelion_BE.domain.user.dto.response.GoogleLoginResponse;
-import com.likelion.likelion_BE.domain.user.dto.response.RoleChangeResponse;
-import com.likelion.likelion_BE.domain.user.dto.response.TokenRefreshResponse;
-import com.likelion.likelion_BE.domain.user.dto.response.UserResponse;
+import com.likelion.likelion_BE.domain.user.dto.response.*;
 import com.likelion.likelion_BE.domain.user.entity.EmailVerification;
 import com.likelion.likelion_BE.domain.user.entity.RefreshToken;
 import com.likelion.likelion_BE.domain.user.entity.User;
@@ -31,6 +28,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -324,6 +322,20 @@ public class UserService {
         } catch (IllegalArgumentException | NullPointerException e) {
             throw new CustomException(AuthErrorCode.INVALID_ROLE_VALUE);
         }
+    }
+
+    @Transactional(readOnly = true)
+    public List<UserListResponse> getUserList(String adminEmail) {
+        User admin = userRepository.findByEmail(adminEmail)
+                .orElseThrow(() -> new CustomException(AuthErrorCode.UNAUTHORIZED));
+
+        if (admin.getRole() != Role.LEADER && admin.getRole() != Role.MANAGER) {
+            throw new CustomException(AuthErrorCode.ROLE_CHANGE_FORBIDDEN);
+        }
+
+        return userRepository.findAll().stream()
+                .map(UserListResponse::from)
+                .toList();
     }
 }
 
