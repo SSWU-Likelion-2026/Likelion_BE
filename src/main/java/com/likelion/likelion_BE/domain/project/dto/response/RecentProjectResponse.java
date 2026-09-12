@@ -13,7 +13,7 @@ public record RecentProjectResponse(
                 project.getId(),
                 project.getTitle(),
                 project.getSummary(),
-                project.getLogoUrl()
+                project.getThumbnailUrl()
         );
     }
 }

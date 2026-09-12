@@ -14,6 +14,7 @@ public interface ProjectRepository extends JpaRepository<Project, Long> {
 
     Optional<Project> findByIdAndDeletedAtIsNull(Long id);
 
+    @EntityGraph(attributePaths = {"slides"})
     Page<Project> findAllByDeletedAtIsNull(Pageable pageable);
 
     // 기수별 목록 페이징 조회 (term이 null이면 전체 조회)
