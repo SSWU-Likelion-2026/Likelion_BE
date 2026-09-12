@@ -20,6 +20,7 @@ import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 
 import static org.mockito.Mockito.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -73,5 +74,43 @@ class MemberProfileSecurityTest {
                     .andExpect(status().isForbidden());
         }
         verifyNoInteractions(service);
+    }
+
+    @Test
+    void guestCannotCreateMemberProfile() throws Exception {
+        mvc.perform(post("/api/v1/member-profiles/me")
+                        .with(user("guest@example.com").authorities(() -> "GUEST"))
+                        .contentType("application/json")
+                        .content(validCreateRequest()))
+                .andExpect(status().isForbidden());
+
+        verifyNoInteractions(service);
+    }
+
+    @Test
+    void memberLeaderAndManagerCanCreateMemberProfile() throws Exception {
+        for (String role : new String[]{"MEMBER", "LEADER", "MANAGER"}) {
+            mvc.perform(post("/api/v1/member-profiles/me")
+                            .with(user(role.toLowerCase() + "@example.com").authorities(() -> role))
+                            .contentType("application/json")
+                            .content(validCreateRequest()))
+                    .andExpect(status().isCreated());
+        }
+
+        verify(service, times(3)).createMyProfile(any(), any());
+    }
+
+    private String validCreateRequest() {
+        return """
+                {
+                  "term": 14,
+                  "name": "홍길동",
+                  "department": "컴퓨터공학과",
+                  "studentId": "20260001",
+                  "memberGroup": "FE",
+                  "memberType": "BABY_LION",
+                  "position": "NONE"
+                }
+                """;
     }
 }
