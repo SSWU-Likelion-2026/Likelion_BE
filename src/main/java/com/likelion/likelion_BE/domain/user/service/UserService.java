@@ -305,7 +305,7 @@ public class UserService {
         User admin = userRepository.findByEmail(adminEmail)
                 .orElseThrow(() -> new CustomException(AuthErrorCode.UNAUTHORIZED));
 
-        if (admin.getRole() != Role.LEADER) {
+        if (admin.getRole() != Role.LEADER && admin.getRole() != Role.MANAGER) {
             throw new CustomException(AuthErrorCode.ROLE_CHANGE_FORBIDDEN);
         }
 
