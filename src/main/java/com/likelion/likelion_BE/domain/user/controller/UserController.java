@@ -14,6 +14,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @Tag(name = "User API", description = "유저 - 회원가입/로그인")
 @RestController
 @RequiredArgsConstructor
@@ -94,6 +96,18 @@ public class UserController {
                 userId,
                 request
         );
+
+        return ResponseEntity.ok(ApiResponse.onSuccess(response));
+    }
+
+    @Operation(
+            summary = "<MT한정> 유저 리스트 조회",
+            description = "유저 리스트 조회 - LEADER, MANAGER 사용 가능")
+    @GetMapping("/list")
+    public ResponseEntity<ApiResponse<List<UserListResponse>>> getUserList(
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        List<UserListResponse> response = userService.getUserList(userDetails.getUsername());
 
         return ResponseEntity.ok(ApiResponse.onSuccess(response));
     }
