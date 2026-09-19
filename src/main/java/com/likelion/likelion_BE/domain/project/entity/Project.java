@@ -183,17 +183,27 @@ public class Project extends BaseEntity {
 
     // 작성자 본인 및 직책(LEADER/MANAGER) 검증 메서드
     public void validateOwnerAndAdminRole(User requester, ProjectErrorCode errorCode) {
-        // 1. 작성자 본인 여부 확인
-        boolean isOwner = this.user.getId().equals(requester.getId());
-        if (!isOwner) {
+        if (!isManageableBy(requester)) {
             throw new CustomException(errorCode);
         }
+    }
+
+    /**
+     * 현재 요청 유저가 해당 프로젝트의 수정/삭제 권한이 있는지 여부 판단
+     */
+    public boolean isManageableBy(User requester) {
+        if (requester == null) {
+            return false;
+        }
+
+        // 1. 작성자 본인 여부 확인
+        boolean isOwner = this.user.getId().equals(requester.getId());
 
         // 2. LEADER 또는 MANAGER 직책 보유 여부 확인
         Role role = requester.getRole();
-        if (role != Role.LEADER && role != Role.MANAGER) {
-            throw new CustomException(errorCode);
-        }
+        boolean hasAdminRole = (role == Role.LEADER || role == Role.MANAGER);
+
+        return isOwner && hasAdminRole;
     }
 
     /**
