@@ -40,35 +40,29 @@ public class ProjectService {
 
     @Transactional
     public ProjectCreateUpdateResponse createProject(String email, ProjectCreateUpdateRequest request) {
-        // 1. 유저 조회 및 등록 권한 검증 (LEADER, MANAGER만 생성 가능)
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
 
         validateAdminRole(user.getRole(), ProjectErrorCode.PROJECT_FORBIDDEN_CREATE);
 
-        // 2. 기술 스택 존재 유무 확인
         List<TechStack> techStacks = techStackRepository.findAllByIdIn(request.techStackIds());
         if (techStacks.size() != request.techStackIds().size()) {
             throw new CustomException(ProjectErrorCode.TECH_STACK_NOT_FOUND);
         }
 
-        // 3. Slide 엔티티 변환 (순서 자동 매핑)
         AtomicInteger sequence = new AtomicInteger(1);
         List<ProjectSlide> slides = request.slideUrls().stream()
                 .map(url -> ProjectSlide.createSlide(url, sequence.getAndIncrement()))
                 .toList();
 
-        // 4. Member 엔티티 변환
         List<ProjectMember> members = request.members().stream()
                 .map(m -> ProjectMember.createMember(m.name(), m.part()))
                 .toList();
 
-        // 5. TechStack 매핑 엔티티 변환
         List<ProjectTechStack> projectTechStacks = techStacks.stream()
                 .map(ProjectTechStack::createProjectTechStack)
                 .toList();
 
-        // 6. Project Aggregate 루트 생성 및 User 엔티티 연결
         Project project = Project.createProject(
                 user,
                 request.term(),
@@ -90,24 +84,19 @@ public class ProjectService {
 
     @Transactional
     public ProjectCreateUpdateResponse updateProject(Long projectId, String email, ProjectCreateUpdateRequest request) {
-        // 1. 유저 조회
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
 
-        // 2. 프로젝트 존재 여부 검증
         Project project = projectRepository.findByIdAndDeletedAtIsNull(projectId)
                 .orElseThrow(() -> new CustomException(ProjectErrorCode.PROJECT_NOT_FOUND));
 
-        // 3. LEADER/MANAGER 자격을 가진 작성자 본인만 수정 가능하도록 검증
         project.validateOwnerAndAdminRole(user, ProjectErrorCode.PROJECT_FORBIDDEN_UPDATE);
 
-        // 4. 기술 스택 존재 유무 확인
         List<TechStack> techStacks = techStackRepository.findAllByIdIn(request.techStackIds());
         if (techStacks.size() != request.techStackIds().size()) {
             throw new CustomException(ProjectErrorCode.TECH_STACK_NOT_FOUND);
         }
 
-        // 5. 연관 엔티티 재생성
         AtomicInteger sequence = new AtomicInteger(1);
         List<ProjectSlide> newSlides = request.slideUrls().stream()
                 .map(url -> ProjectSlide.createSlide(url, sequence.getAndIncrement()))
@@ -121,7 +110,6 @@ public class ProjectService {
                 .map(ProjectTechStack::createProjectTechStack)
                 .toList();
 
-        // 6. 엔티티 수정 (Dirty Checking)
         project.updateProject(
                 request.term(),
                 request.hackathon(),
@@ -141,22 +129,17 @@ public class ProjectService {
 
     @Transactional
     public void deleteProject(Long projectId, String email) {
-        // 1. 유저 조회
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
 
-        // 2. 프로젝트 존재 여부 검증
         Project project = projectRepository.findByIdAndDeletedAtIsNull(projectId)
                 .orElseThrow(() -> new CustomException(ProjectErrorCode.PROJECT_NOT_FOUND));
 
-        // 3. LEADER/MANAGER 자격을 가진 작성자 본인만 삭제 가능하도록 검증
         project.validateOwnerAndAdminRole(user, ProjectErrorCode.PROJECT_FORBIDDEN_DELETE);
 
-        // 4. 삭제 처리
         project.delete();
     }
 
-    // HOME 최근 프로젝트 조회
     public List<RecentProjectResponse> getRecentProjects(int size) {
         PageRequest pageRequest = PageRequest.of(
                 0,
@@ -175,16 +158,21 @@ public class ProjectService {
         }
     }
 
-    // 프로젝트 상세 조회
+    // 프로젝트 상세 조회 (권한 검증 포함)
     @Transactional(readOnly = true)
-    public ProjectDetailResponse getProjectDetail(Long projectId) {
+    public ProjectDetailResponse getProjectDetail(Long projectId, String email) {
         Project project = projectRepository.findDetailByIdAndDeletedAtIsNull(projectId)
                 .orElseThrow(() -> new CustomException(ProjectErrorCode.PROJECT_NOT_FOUND));
 
-        return ProjectDetailResponse.from(project);
+        // 로그인하지 않은 사용자는 email이 null일 수 있음
+        User user = (email != null) ? userRepository.findByEmail(email).orElse(null) : null;
+
+        // 권한 판단
+        boolean canManage = project.isManageableBy(user);
+
+        return ProjectDetailResponse.of(project, canManage);
     }
 
-    // 프로젝트 목록 조회
     public Page<ProjectListResponse> getProjects(Integer term, Pageable pageable) {
         Page<Project> projects = projectRepository.findAllByTerm(term, pageable);
         return projects.map(ProjectListResponse::from);

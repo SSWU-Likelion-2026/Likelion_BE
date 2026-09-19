@@ -47,13 +47,15 @@ public class ProjectController {
         return ResponseEntity.ok(ApiResponse.onSuccess(PageResponse.from(response)));
     }
 
-    // 프로젝트 상세 조회
-    @Operation(summary = "프로젝트 상세 조회", description = "프로젝트 ID를 통해 피그마 상세 화면에 필요한 정보를 조회합니다.")
+    // 프로젝트 상세 조회 (권한 판단 정보 전달)
+    @Operation(summary = "프로젝트 상세 조회", description = "프로젝트 ID를 통해 상세 화면 정보 및 현재 사용자의 수정/삭제 권한(canManage)을 조회합니다.")
     @GetMapping("/{projectId}")
     public ResponseEntity<ApiResponse<ProjectDetailResponse>> getProjectDetail(
-            @PathVariable Long projectId
+            @PathVariable Long projectId,
+            @AuthenticationPrincipal UserDetails userDetails
     ) {
-        ProjectDetailResponse response = projectService.getProjectDetail(projectId);
+        String email = (userDetails != null) ? userDetails.getUsername() : null;
+        ProjectDetailResponse response = projectService.getProjectDetail(projectId, email);
         return ResponseEntity.ok(ApiResponse.onSuccess(response));
     }
 
@@ -87,5 +89,4 @@ public class ProjectController {
         projectService.deleteProject(projectId, userDetails.getUsername());
         return ResponseEntity.ok(ApiResponse.onSuccess(null));
     }
-
 }

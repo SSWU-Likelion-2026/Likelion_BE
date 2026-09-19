@@ -23,6 +23,7 @@ public record ProjectDetailResponse(
         String summary,
         String description,
         Hackathon hackathon,
+        boolean canManage, // 현재 유저의 프로젝트 관리(수정/삭제) 권한 여부
 
         @JsonFormat(pattern = "yyyy-MM")
         YearMonth startMonth,
@@ -39,7 +40,7 @@ public record ProjectDetailResponse(
             String name
     ) {}
 
-    public static ProjectDetailResponse from(Project project) {
+    public static ProjectDetailResponse of(Project project, boolean canManage) {
         // 1. 슬라이드 순서(sequenceNum) 정렬 후 imageUrl 추출
         List<String> slideUrls = project.getSlides().stream()
                 .sorted(Comparator.comparingInt(ProjectSlide::getSequenceNum))
@@ -73,6 +74,7 @@ public record ProjectDetailResponse(
                 .summary(project.getSummary())
                 .description(project.getDescription())
                 .hackathon(project.getHackathon())
+                .canManage(canManage)
                 .startMonth(YearMonth.from(project.getStartMonth()))
                 .endMonth(YearMonth.from(project.getEndMonth()))
                 .slideUrls(slideUrls)
