@@ -49,67 +49,67 @@ public class UserService {
     @org.springframework.beans.factory.annotation.Autowired
     private UserService self;
 
-    @Transactional
-    public UserResponse signup(SignupRequest request) {
-        String email = request.email().trim().toLowerCase();
-
-        if (!email.endsWith(SUNGSHIN_EMAIL_DOMAIN)) {
-            throw new CustomException(AuthErrorCode.NOT_SUNGSHIN_EMAIL);
-        }
-
-        if (!request.password().equals(request.passwordCheck())) {
-            throw new CustomException(AuthErrorCode.PASSWORD_MISMATCH);
-        }
-
-        if (userRepository.existsByEmail(email)) {
-            throw new CustomException(AuthErrorCode.DUPLICATE_EMAIL);
-        }
-
-        validateEmailVerified(email);
-
-        User user = userRepository.save(
-                User.createLocalUser(
-                        email,
-                        passwordEncoder.encode(request.password()),
-                        request.name().trim(),
-                        null,
-                        null,
-                        null
-                )
-        );
-
-        TokenRefreshResponse tokens = issueTokens(user);
-
-        return UserResponse.of(
-                user,
-                tokens.accessToken(),
-                tokens.refreshToken(),
-                tokens.accessTokenExpiresIn()
-        );
-    }
-
-    @Transactional
-    public UserResponse login(LoginRequest request) {
-        User user = userRepository.findByEmail(request.email().trim().toLowerCase())
-                .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_CREDENTIALS));
-
-        if (!user.hasPassword()) {
-            throw new CustomException(AuthErrorCode.SOCIAL_LOGIN_REQUIRED);
-        }
-
-        if (!passwordEncoder.matches(request.password(), user.getPassword())) {
-            throw new CustomException(AuthErrorCode.INVALID_CREDENTIALS);
-        }
-
-        TokenRefreshResponse tokens = issueTokens(user);
-
-        return UserResponse.of(
-                user,
-                tokens.accessToken(),
-                tokens.refreshToken(),
-                tokens.accessTokenExpiresIn()
-        );
-    }
+//    @Transactional
+//    public UserResponse signup(SignupRequest request) {
+//        String email = request.email().trim().toLowerCase();
+//
+//        if (!email.endsWith(SUNGSHIN_EMAIL_DOMAIN)) {
+//            throw new CustomException(AuthErrorCode.NOT_SUNGSHIN_EMAIL);
+//        }
+//
+//        if (!request.password().equals(request.passwordCheck())) {
+//            throw new CustomException(AuthErrorCode.PASSWORD_MISMATCH);
+//        }
+//
+//        if (userRepository.existsByEmail(email)) {
+//            throw new CustomException(AuthErrorCode.DUPLICATE_EMAIL);
+//        }
+//
+//        validateEmailVerified(email);
+//
+//        User user = userRepository.save(
+//                User.createLocalUser(
+//                        email,
+//                        passwordEncoder.encode(request.password()),
+//                        request.name().trim(),
+//                        null,
+//                        null,
+//                        null
+//                )
+//        );
+//
+//        TokenRefreshResponse tokens = issueTokens(user);
+//
+//        return UserResponse.of(
+//                user,
+//                tokens.accessToken(),
+//                tokens.refreshToken(),
+//                tokens.accessTokenExpiresIn()
+//        );
+//    }
+//
+//    @Transactional
+//    public UserResponse login(LoginRequest request) {
+//        User user = userRepository.findByEmail(request.email().trim().toLowerCase())
+//                .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_CREDENTIALS));
+//
+//        if (!user.hasPassword()) {
+//            throw new CustomException(AuthErrorCode.SOCIAL_LOGIN_REQUIRED);
+//        }
+//
+//        if (!passwordEncoder.matches(request.password(), user.getPassword())) {
+//            throw new CustomException(AuthErrorCode.INVALID_CREDENTIALS);
+//        }
+//
+//        TokenRefreshResponse tokens = issueTokens(user);
+//
+//        return UserResponse.of(
+//                user,
+//                tokens.accessToken(),
+//                tokens.refreshToken(),
+//                tokens.accessTokenExpiresIn()
+//        );
+//    }
 
     @Transactional
     public TokenRefreshResponse reissue(TokenRefreshRequest request) {
@@ -240,6 +240,11 @@ public class UserService {
             String name,
             String profileImageUrl
     ) {
+
+        if (!email.endsWith("@sungshin.ac.kr")) {
+            throw new CustomException(AuthErrorCode.NOT_SUNGSHIN_EMAIL);
+        }
+
         // 1) 이미 구글과 연동된 계정 -> 그대로 로그인
         User user = userRepository.findByProviderId(providerId).orElse(null);
 
