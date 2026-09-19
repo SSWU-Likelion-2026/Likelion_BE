@@ -25,21 +25,21 @@ public class UserController {
     private final UserService userService;
     private final EmailVerificationService emailVerificationService;
 
-    @Operation(
-            summary = "로컬 회원가입",
-            description = "")
-    @PostMapping("/signup")
-    public ResponseEntity<ApiResponse<UserResponse>> signup(@Valid @RequestBody SignupRequest request) {
-        return ResponseEntity.ok(ApiResponse.onSuccess(userService.signup(request)));
-    }
-
-    @Operation(
-            summary = "로컬 로그인",
-            description = "")
-    @PostMapping("/login")
-    public ResponseEntity<ApiResponse<UserResponse>> login(@Valid @RequestBody LoginRequest request) {
-        return ResponseEntity.ok(ApiResponse.onSuccess(userService.login(request)));
-    }
+//    @Operation(
+//            summary = "로컬 회원가입",
+//            description = "")
+//    @PostMapping("/signup")
+//    public ResponseEntity<ApiResponse<UserResponse>> signup(@Valid @RequestBody SignupRequest request) {
+//        return ResponseEntity.ok(ApiResponse.onSuccess(userService.signup(request)));
+//    }
+//
+//    @Operation(
+//            summary = "로컬 로그인",
+//            description = "")
+//    @PostMapping("/login")
+//    public ResponseEntity<ApiResponse<UserResponse>> login(@Valid @RequestBody LoginRequest request) {
+//        return ResponseEntity.ok(ApiResponse.onSuccess(userService.login(request)));
+//    }
 
     @Operation(
             summary = "accessToken 재발급",
