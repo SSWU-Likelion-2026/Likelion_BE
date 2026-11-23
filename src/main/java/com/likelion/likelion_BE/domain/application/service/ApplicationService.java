@@ -1,6 +1,7 @@
 package com.likelion.likelion_BE.domain.application.service;
 
 import com.likelion.likelion_BE.common.exception.CustomException;
+import com.likelion.likelion_BE.common.s3.FileValidator;
 import com.likelion.likelion_BE.common.s3.S3Uploader;
 import com.likelion.likelion_BE.domain.application.dto.request.ApplicationSaveRequest;
 import com.likelion.likelion_BE.domain.application.dto.response.CurrentQuestionsResponse;
@@ -167,6 +168,7 @@ public class ApplicationService {
         if (file == null || file.isEmpty()) {
             throw new CustomException(ApplicationErrorCode.INVALID_FILE);
         }
+        FileValidator.validatePdf(file, 20*1024*1024L);
 
         // 2. S3 업로드 수행
         String fileUrl = s3Uploader.upload(file, "applications");
@@ -279,6 +281,15 @@ public class ApplicationService {
 
             if (isTextType && question.getMaxLength() != null && userContent.length() > question.getMaxLength()) {
                 throw new CustomException(ApplicationErrorCode.ANSWER_LENGTH_EXCEEDED);
+            }
+
+            // 3) 링크 유형이면 http/https URL만 허용
+            if (question.getQuestionType() == QuestionType.LINK && !userContent.isEmpty()) {
+                boolean validUrl = (userContent.startsWith("https://") || userContent.startsWith("http://"))
+                        && userContent.length() <= 500;
+                if (!validUrl) {
+                    throw new CustomException(ApplicationErrorCode.INVALID_LINK);
+                }
             }
         }
     }
