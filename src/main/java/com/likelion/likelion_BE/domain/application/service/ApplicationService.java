@@ -28,7 +28,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -84,7 +87,8 @@ public class ApplicationService {
 
     // 지원서 임시저장 (검증 완화)
     @Transactional
-    public Long saveDraft(Long userId, ApplicationSaveRequest request) {
+    public Long saveDraft(String email, ApplicationSaveRequest request) {
+        Long userId = getUserByEmail(email).getId();
         Recruitment recruitment = getCurrentRecruitment();
 
         // 모집 마감 여부 확인
@@ -121,7 +125,8 @@ public class ApplicationService {
 
     // 지원서 최종 제출 (엄격한 검증)
     @Transactional
-    public Long submitApplication(Long userId, ApplicationSaveRequest request) {
+    public Long submitApplication(String email, ApplicationSaveRequest request) {
+        Long userId = getUserByEmail(email).getId();
         Recruitment recruitment = getCurrentRecruitment();
 
         // [검증 1] 모집 기간 마감 여부 확인
@@ -182,6 +187,11 @@ public class ApplicationService {
     private Recruitment getCurrentRecruitment() {
         return recruitmentRepository.findFirstByStatusOrderByCreatedAtDesc(RecruitmentStatus.OPEN)
                 .orElseThrow(() -> new CustomException(RecruitmentErrorCode.RECRUITMENT_NOT_FOUND));
+    }
+
+    private User getUserByEmail(String email) {
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
     }
 
     // 모집 파트 Id로 파트 조회
@@ -273,16 +283,13 @@ public class ApplicationService {
         }
     }
 
-    public MyApplicationResponse getMyApplication(Long userId) {
+    public MyApplicationResponse getMyApplication(String email) {
+        User user = getUserByEmail(email);
         Recruitment recruitment = getCurrentRecruitment();
 
         // 해당 유저가 현재 기수에 작성한 지원서 조회
-        Application application = applicationRepository.findByUserIdAndRecruitmentId(userId, recruitment.getId())
+        Application application = applicationRepository.findByUserIdAndRecruitmentId(user.getId(), recruitment.getId())
                 .orElseThrow(() -> new CustomException(ApplicationErrorCode.APPLICATION_NOT_FOUND));
-
-        // 유저 정보 조회
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
 
         return MyApplicationResponse.from(application, user);
     }

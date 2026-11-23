@@ -11,6 +11,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -36,9 +38,9 @@ public class ApplicationController {
     @Operation(summary = "내 지원서 조회", description = "현재 진행 중인 모집 공고에 작성 중이거나 제출한 내 지원서를 조회합니다.")
     @GetMapping("/applications/me")
     public ApiResponse<MyApplicationResponse> getMyApplication(
-            @RequestParam(defaultValue = "1") Long userId
+            @AuthenticationPrincipal UserDetails userDetails
     ) {
-        MyApplicationResponse response = applicationService.getMyApplication(userId);
+        MyApplicationResponse response = applicationService.getMyApplication(userDetails.getUsername());
         return ApiResponse.onSuccess(response);
     }
 
@@ -46,10 +48,10 @@ public class ApplicationController {
     @Operation(summary = "지원서 임시저장", description = "작성 중인 지원서를 임시 저장합니다. (필수 항목 미입력 허용)")
     @PostMapping("/applications/draft")
     public ApiResponse<Long> saveDraft(
-            @RequestParam(defaultValue = "1") Long userId,
+            @AuthenticationPrincipal UserDetails userDetails,
             @Valid @RequestBody ApplicationSaveRequest request
     ) {
-        Long applicationId = applicationService.saveDraft(userId, request);
+        Long applicationId = applicationService.saveDraft(userDetails.getUsername(), request);
         return ApiResponse.onSuccess(applicationId);
     }
 
@@ -57,10 +59,10 @@ public class ApplicationController {
     @Operation(summary = "지원서 최종 제출", description = "지원서를 최종 제출합니다. (필수 답변 및 글자 수 검증)")
     @PostMapping("/applications/submit")
     public ApiResponse<Long> submitApplication(
-            @RequestParam(defaultValue = "1") Long userId,
+            @AuthenticationPrincipal UserDetails userDetails,
             @Valid @RequestBody ApplicationSaveRequest request
     ) {
-        Long applicationId = applicationService.submitApplication(userId, request);
+        Long applicationId = applicationService.submitApplication(userDetails.getUsername(), request);
         return ApiResponse.onSuccess(applicationId);
     }
 
