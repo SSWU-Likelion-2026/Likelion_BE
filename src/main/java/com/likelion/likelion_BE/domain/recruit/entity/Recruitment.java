@@ -152,7 +152,7 @@ public class Recruitment extends BaseEntity {
             if (request.id() != null) {
                 // 기존 파트 -> 객체 참조 유지하며 값만 변경
                 this.parts.stream()
-                        .filter(part -> part.getId().equals(request.id()))
+                        .filter(part -> Objects.equals(part.getId(), request.id()))
                         .findFirst()
                         .ifPresent(part -> part.updatePart(request.name(), request.description()));
             } else {
