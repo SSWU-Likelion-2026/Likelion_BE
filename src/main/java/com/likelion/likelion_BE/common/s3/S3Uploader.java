@@ -96,6 +96,6 @@ public class S3Uploader {
             return "file";
         }
         // # 및 ? 문자를 언더스코어(_)로 치환하여 S3 Key 및 URL 안전성 확보
-        return originalFilename.replaceAll("[#?]", "_");
+        return originalFilename.replaceAll("[#?/\\\\]", "_");
     }
 }

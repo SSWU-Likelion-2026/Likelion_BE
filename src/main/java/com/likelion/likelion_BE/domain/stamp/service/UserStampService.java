@@ -1,6 +1,7 @@
 package com.likelion.likelion_BE.domain.stamp.service;
 
 import com.likelion.likelion_BE.common.exception.CustomException;
+import com.likelion.likelion_BE.common.s3.FileValidator;
 import com.likelion.likelion_BE.common.s3.S3Uploader;
 import com.likelion.likelion_BE.domain.stamp.dto.request.StampAuthRequest;
 import com.likelion.likelion_BE.domain.stamp.dto.response.MissionListResponse;
@@ -99,6 +100,7 @@ public class UserStampService {
         if (image == null || image.isEmpty()) {
             throw new CustomException(StampErrorCode.STAMP_IMAGE_REQUIRED);
         }
+        FileValidator.validateImage(image, 10*1024*1024L);
 
 
         // S3 사진 업로드
